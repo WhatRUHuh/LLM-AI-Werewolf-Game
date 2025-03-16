@@ -144,6 +144,30 @@ class VoteHandler:
                           f"**【历史白天发言】**\n{history_speeches}\n" +
                           f"**【历史遗言记录】**:\n{last_words}\n" +
                           role_tip + footer + common_suffix)
+            
+            elif player.identity == "女巫":
+                # 读取女巫的药水使用状态
+                save_used = self.app.state.witch_save_used.get(player_id, False)
+                poison_used = self.app.state.witch_poison_used.get(player_id, False)
+                drug_status = f"**【女巫药水状态】**\n救人药：{'已使用' if save_used else '未使用'}\n毒药：{'已使用' if poison_used else '未使用'}\n"
+                
+                role_tip = ("【提示-女巫】作为女巫，请结合所有已知信息（历史死亡、游戏状态、前一日投票总结、其他玩家发言及遗言记录），"
+                            "做出你认为最合理的投票选择，并务必说明理由。请注意隐藏身份，确保投票内容控制在300字以内！")
+                
+                # 读取玩家自己所有的白天投票记录和夜间使用药水记录
+                player_day_votes = self._read_player_history_day_votes(player_id)
+                player_night_votes = self._read_player_history_night_votes(player_id)
+                daytime_speeches = self._read_day_speeches()
+                history_speeches = self._read_history_day_speeches()
+                prompt = (start_line + common_prefix + phase_indicator + header_footer +
+                          role_tip + "\n" +
+                          drug_status +
+                          f"**【你的历史白天投票记录】**\n{player_day_votes}\n" +
+                          f"**【你的历史夜晚药水使用记录】**\n{player_night_votes}\n" +
+                          f"**【今日其他玩家发言】**:\n{daytime_speeches}\n" +
+                          f"**【历史白天发言】**\n{history_speeches}\n" +
+                          f"**【历史遗言记录】**:\n{last_words}\n" +
+                          role_tip + footer + common_suffix)
 
             self.app.log_system(f"玩家 {player_id} 准备进行白天投票...")
 
