@@ -209,6 +209,7 @@ class WerewolfGameApp:
         self.hunter_count = 0    # 默认猎人数量
         self.witch_count = 0     # 默认女巫数量
         self.tts_enabled = init_config()  # 从 config.ini 加载 TTS 启用配置，默认为 True
+        self.tts_speed = "+0%"   # 默认TTS语音速度
         self.state = self.create_game_state()  # 使用专门的方法创建 GameState
         self.last_voter_id = None  # 用于记录最后投票的玩家ID，方便主持人改票
         self.sheriff_labels = {}  # 用于存储每个玩家的警长标签
@@ -286,6 +287,11 @@ class WerewolfGameApp:
         """切换 TTS 启用状态"""
         self.tts_enabled = not self.tts_enabled
         self.log_system(f"TTS 已 {'启用' if self.tts_enabled else '禁用'}")
+        
+    def set_tts_speed(self, speed):
+        """设置 TTS 语音速度"""
+        self.tts_speed = speed
+        self.log_system(f"TTS 语音速度已设置为 {speed}")
 
     def clear_summary_text(self):
         """清空游戏总统计窗口的文字"""

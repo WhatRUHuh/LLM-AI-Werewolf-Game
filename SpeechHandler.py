@@ -678,7 +678,7 @@ class SpeechHandler:
 
             # 根据 TTS 开关状态播放语音
             if self.app.tts_enabled:
-                play_tts(text_parsed, player_id)
+                play_tts(text_parsed, player_id, self.app.tts_speed)
 
         self.model_handler.call_model(player.model, prompt, self.app.summary_text, tag=f"p{player_id}",
                                       callback=speech_callback, player_id=player_id)

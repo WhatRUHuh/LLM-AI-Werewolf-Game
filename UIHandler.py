@@ -64,11 +64,20 @@ class UIHandler:
         # TTS 开关
         self.app.tts_enabled_var = tk.BooleanVar(value=self.app.tts_enabled) # 初始化为 WerewolfGameApp 的 tts_enabled 值
         ttk.Checkbutton(self.config_frame, text="启用 TTS", variable=self.app.tts_enabled_var, command=self.app.toggle_tts).grid(row=2, column=4, padx=5, pady=5, sticky="w")
+        
+        # TTS 语音速度控制
+        ttk.Label(self.config_frame, text="TTS速度:").grid(row=2, column=5, padx=5, pady=5, sticky="w")
+        self.app.tts_speed_var = tk.StringVar(value=self.app.tts_speed)
+        tts_speeds = ["-50%", "-25%", "+0%", "+25%", "+50%", "+75%", "+100%"]
+        self.app.tts_speed_combo = ttk.Combobox(self.config_frame, textvariable=self.app.tts_speed_var, 
+                                               values=tts_speeds, width=6, state="readonly")
+        self.app.tts_speed_combo.grid(row=2, column=6, padx=5, pady=5)
+        self.app.tts_speed_combo.bind("<<ComboboxSelected>>", lambda e: self.app.set_tts_speed(self.app.tts_speed_var.get()))
 
         self.app.apply_config_btn = ttk.Button(self.config_frame, text="应用配置", command=self.app.apply_config)
-        self.app.apply_config_btn.grid(row=0, column=5, padx=5, pady=5)
+        self.app.apply_config_btn.grid(row=0, column=7, padx=5, pady=5)
         self.app.restart_btn = ttk.Button(self.config_frame, text="重新开始游戏", command=self.app.game_logic_handler.restart_game)
-        self.app.restart_btn.grid(row=0, column=6, padx=5, pady=5)
+        self.app.restart_btn.grid(row=0, column=8, padx=5, pady=5)
         # 主持人控制面板
         self.app.mod_frame = ttk.Labelframe(self.root, text="主持人控制面板", padding=10)
         self.app.mod_frame.pack(fill=tk.X, padx=10, pady=5)

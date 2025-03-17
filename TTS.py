@@ -19,7 +19,7 @@ TTS_VOICES = {
     10: "zh-TW-HsiaoChenNeural",
 }
 
-async def play_edge_tts(text, voice, output_file="temp_audio.mp3"):
+async def play_edge_tts(text, voice, output_file="temp_audio.mp3", rate="+0%"):
     """
     使用 edge-tts 将文本转换为语音并保存到文件。
 
@@ -27,9 +27,10 @@ async def play_edge_tts(text, voice, output_file="temp_audio.mp3"):
         text: 要转换的文本 (字符串).
         voice: 使用的音色 (字符串).
         output_file: 输出音频文件名 (字符串, 默认为 "temp_audio.mp3").
+        rate: 语音速度 (字符串, 默认为 "+0%").
     """
     try:
-        communicate = edge_tts.Communicate(text, voice)
+        communicate = edge_tts.Communicate(text, voice, rate=rate)
         with open(output_file, "wb") as f:
             async for chunk in communicate.stream():
                 if chunk["type"] == "audio":
@@ -44,10 +45,10 @@ def init_tts_config():
     # 初始化 TTS 配置 (目前无需配置)
     pass
 
-def play_tts(text, player_id):
+def play_tts(text, player_id, rate="+0%"):
     # 播放 TTS 语音
     if player_id in TTS_VOICES:
         voice = TTS_VOICES[player_id]
-        asyncio.run(play_edge_tts(text, voice))
+        asyncio.run(play_edge_tts(text, voice, rate=rate))
     else:
         print(f"玩家 {player_id} 没有配置 TTS 音色")
