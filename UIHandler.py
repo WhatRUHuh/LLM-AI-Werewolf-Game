@@ -433,4 +433,11 @@ class UIHandler:
         # 如果有警长，显示对应玩家的警长标签
         if sheriff_id is not None and sheriff_id in self.app.sheriff_labels:
             self.app.sheriff_labels[sheriff_id].grid()
-            self.app.log_system(f"显示玩家 {sheriff_id} 的警长标签")
+            
+            # 检查警长是否存活，如果死亡则设置为半透明
+            if not self.app.state.players[sheriff_id].alive:
+                self.app.sheriff_labels[sheriff_id].configure(fg="#B3B3B3")  # 灰色，半透明效果
+            else:
+                self.app.sheriff_labels[sheriff_id].configure(fg="gold")  # 活着的警长显示金色
+                
+            self.app.log_system(f"显示玩家 {sheriff_id} 的警长标签 {'(已死亡)' if not self.app.state.players[sheriff_id].alive else ''}")

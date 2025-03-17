@@ -28,6 +28,7 @@ class GameState:
         
         # 警长相关状态
         self.sheriff_id = None  # 当前警长玩家ID
+        self.sheriff_history = []  # 历史警长记录，格式为[(player_id, "当选"/"移交"/"销毁"), ...]
         
         self.initialize_players()
 

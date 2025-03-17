@@ -20,18 +20,24 @@ class SpeechHandler:
         if not player.exists:
             self.app.log_system(f"玩家 {player_id} 不存在，无法发言。")
             return
-            
-        # 如果是死亡玩家，则视为遗言阶段，允许发言
+        
+        # 检查是否是遗言发言
         is_last_words = not player.alive
         
-        # 如果是夜晚，且玩家仍然活着，但不是狼人，则阻止发言
-        if self.app.state.phase == "night" and player.alive and player.identity != "狼人":
-            self.app.log_system(f"玩家 {player_id} 不是狼人，无法在夜晚发言。")
-            return
+        # 如果是活着的玩家在夜晚发言，检查身份
+        if not is_last_words and self.app.state.phase == "night":
+            if player.identity not in ["狼人", "预言家"]:
+                self.app.log_system(f"玩家 {player_id} 在夜晚无法发言（身份：{player.identity}）。")
+                return
 
         # 准备阶段提示信息
         if is_last_words:
             self.app.log_system(f"玩家 {player_id} 准备进行遗言发言...")
+            
+            # 如果是警长，添加警徽移交提示
+            if player_id == self.app.state.sheriff_id:
+                self.app.log_system(f"警长 {player_id} 可以在遗言中选择移交或销毁警徽")
+                
         elif self.app.state.phase == "day":
             # 白天发言准备提示
             identity_display = player.identity if player.identity != "空" else "玩家"
@@ -54,8 +60,6 @@ class SpeechHandler:
                     history_info_formatted += f"**第{day}天**: 死亡: {death_str}\n"
                 else:
                     history_info_formatted += f"**第{day}天**: 无死亡\n"
-        else:
-            history_info_formatted += "暂无历史死亡记录\n"
             
         # 添加当天的死亡信息
         current_day = self.app.state.day
@@ -125,17 +129,38 @@ class SpeechHandler:
                     "必要时可煽动其他玩家形成对特定目标的压力。\n"
                     "⚠️ 请务必将你的遗言控制在300字以内！"
                 )
+                
+                # 如果是警长，添加警徽移交提示
+                if player_id == self.app.state.sheriff_id:
+                    role_tip += (
+                        "\n【警长提示】作为警长，你可以在遗言中选择将警徽传递给其他玩家或销毁警徽。\n"
+                        "- 传递警徽：在遗言中使用[警徽给X]或【警徽给X】格式（X为玩家编号）\n"
+                        "- 销毁警徽：在遗言中使用[销毁警徽]或【销毁警徽】\n"
+                        "如果不做选择，警徽将自动销毁。\n"
+                    )
+                
                 # 读取玩家自己所有的白天投票记录，而不仅仅是前一天的
                 player_day_votes = self._read_player_history_day_votes(player_id)
                 daytime_speeches = self._read_day_speeches()
                 history_speeches = self._read_history_day_speeches()
                 history_votes = self._read_history_day_votes()
+                
+                # 添加警长历史信息
+                sheriff_info = ""
+                if self.app.state.sheriff_id is not None:
+                    sheriff_info = f"**【当前警长】**: 玩家{self.app.state.sheriff_id}\n\n"
+                if self.app.state.sheriff_history:
+                    sheriff_info += "**【警长历史】**:\n"
+                    for sheriff_id, action in self.app.state.sheriff_history:
+                        sheriff_info += f"玩家{sheriff_id}：{action}警徽\n"
+                
                 prompt = (start_line + common_prefix + phase_indicator + header_footer +
                           role_tip + "\n" +
                           f"**【你的历史白天投票记录】**\n{player_day_votes}\n" +
                           f"**【今日其他玩家发言】**\n{daytime_speeches}\n" +
                           f"**【历史白天发言】**\n{history_speeches}\n" +
                           f"**【历史遗言记录】**\n{last_words}\n" +
+                          (f"**【警长信息】**\n{sheriff_info}\n" if sheriff_info else "") +
                           role_tip + footer + common_suffix)
 
             elif player.identity == "狼人":
@@ -149,12 +174,32 @@ class SpeechHandler:
                     "若身份已暴露，试图虚假爆料，引导错误方向。\n"
                     "⚠️ 请务必将你的遗言控制在300字以内！"
                 )
+                
+                # 如果是警长，添加警徽移交提示
+                if player_id == self.app.state.sheriff_id:
+                    role_tip += (
+                        "\n【警长提示】作为警长，你可以在遗言中选择将警徽传递给其他玩家或销毁警徽。\n"
+                        "- 传递警徽：在遗言中使用[警徽给X]或【警徽给X】格式（X为玩家编号）\n"
+                        "- 销毁警徽：在遗言中使用[销毁警徽]或【销毁警徽】\n"
+                        "如果不做选择，警徽将自动销毁。\n"
+                    )
+                
                 # 读取玩家自己所有的白天和夜晚投票记录
                 player_day_votes = self._read_player_history_day_votes(player_id)
                 player_night_votes = self._read_player_history_night_votes(player_id)
                 daytime_speeches = self._read_day_speeches()
                 history_speeches = self._read_history_day_speeches()
                 history_night_speeches = self._read_history_night_speeches()
+                
+                # 添加警长历史信息
+                sheriff_info = ""
+                if self.app.state.sheriff_id is not None:
+                    sheriff_info = f"**【当前警长】**: 玩家{self.app.state.sheriff_id}\n\n"
+                if self.app.state.sheriff_history:
+                    sheriff_info += "**【警长历史】**:\n"
+                    for sheriff_id, action in self.app.state.sheriff_history:
+                        sheriff_info += f"玩家{sheriff_id}：{action}警徽\n"
+                
                 prompt = (start_line + common_prefix + phase_indicator + header_footer +
                           role_tip + "\n" +
                           f"**【你的历史白天投票记录】**\n{player_day_votes}\n" +
@@ -163,6 +208,7 @@ class SpeechHandler:
                           f"**【历史白天发言】**\n{history_speeches}\n" +
                           f"**【历史夜晚狼人发言】**\n{history_night_speeches}\n" +
                           f"**【历史遗言记录】**\n{last_words}\n" +
+                          (f"**【警长信息】**\n{sheriff_info}\n" if sheriff_info else "") +
                           f"**【队友信息】狼人队友：{teammates}**\n" +
                           role_tip + footer + common_suffix)
 
@@ -177,6 +223,16 @@ class SpeechHandler:
                     "观察其他玩家反应，判断真假预言家。\n"
                     "⚠️ 请务必将你的遗言控制在300字以内！"
                 )
+                
+                # 如果是警长，添加警徽移交提示
+                if player_id == self.app.state.sheriff_id:
+                    role_tip += (
+                        "\n【警长提示】作为警长，你可以在遗言中选择将警徽传递给其他玩家或销毁警徽。\n"
+                        "- 传递警徽：在遗言中使用[警徽给X]或【警徽给X】格式（X为玩家编号）\n"
+                        "- 销毁警徽：在遗言中使用[销毁警徽]或【销毁警徽】\n"
+                        "如果不做选择，警徽将自动销毁。\n"
+                    )
+                
                 # 读取玩家自己所有的白天和夜晚投票记录
                 player_day_votes = self._read_player_history_day_votes(player_id)
                 player_night_votes = self._read_player_history_night_votes(player_id)
@@ -185,6 +241,16 @@ class SpeechHandler:
                 check_record_content = self._read_check_record()
                 check_info = f"**【当前查验信息 record/查验.txt 内容如下】**:\n{check_record_content}\n" \
                              f"**【查验信息结束】**\n"
+                
+                # 添加警长历史信息
+                sheriff_info = ""
+                if self.app.state.sheriff_id is not None:
+                    sheriff_info = f"**【当前警长】**: 玩家{self.app.state.sheriff_id}\n\n"
+                if self.app.state.sheriff_history:
+                    sheriff_info += "**【警长历史】**:\n"
+                    for sheriff_id, action in self.app.state.sheriff_history:
+                        sheriff_info += f"玩家{sheriff_id}：{action}警徽\n"
+                
                 prompt = (start_line + common_prefix + phase_indicator + header_footer +
                           role_tip + "\n" +
                           f"**【你的历史白天投票记录】**\n{player_day_votes}\n" +
@@ -193,12 +259,13 @@ class SpeechHandler:
                           f"**【历史白天发言】**\n{history_speeches}\n" +
                           check_info +
                           f"**【历史遗言记录】**\n{last_words}\n" +
+                          (f"**【警长信息】**\n{sheriff_info}\n" if sheriff_info else "") +
                           role_tip + footer + common_suffix)
 
             elif player.identity == "猎人":
                 start_line = f"玩家 {player_id} 开始发表遗言并准备带走一名玩家...\n"
                 role_tip = (
-                    "【提示-猎人】作为猎人，你拥有死后带走一名玩家的能力！\n"
+                    "【猎人提示】作为猎人，你拥有死后带走一名玩家的能力！\n"
                     "**重要：作为猎人，你可以在死亡时带走一名玩家。请在遗言的同时选择你想带走的玩家！**\n"
                     "结合已知信息，分析局势，找出最可疑的目标。\n"
                     "重点关注发言逻辑漏洞和行为异常的玩家。\n"
@@ -207,17 +274,38 @@ class SpeechHandler:
                     "**在遗言结束后，请像投票一样用[玩家编号]格式指定你要带走的人，或者输入[随机]或[弃票]。**\n"
                     "⚠️ 请务必将你的遗言控制在300字以内！"
                 )
+                
+                # 如果是警长，添加警徽移交提示
+                if player_id == self.app.state.sheriff_id:
+                    role_tip += (
+                        "\n【警长提示】作为警长，你可以在遗言中选择将警徽传递给其他玩家或销毁警徽。\n"
+                        "- 传递警徽：在遗言中使用[警徽给X]或【警徽给X】格式（X为玩家编号）\n"
+                        "- 销毁警徽：在遗言中使用[销毁警徽]或【销毁警徽】\n"
+                        "如果不做选择，警徽将自动销毁。\n"
+                    )
+                
                 # 读取玩家自己所有的白天投票记录
                 player_day_votes = self._read_player_history_day_votes(player_id)
                 daytime_speeches = self._read_day_speeches()
                 history_speeches = self._read_history_day_speeches()
                 history_votes = self._read_history_day_votes()
+                
+                # 添加警长历史信息
+                sheriff_info = ""
+                if self.app.state.sheriff_id is not None:
+                    sheriff_info = f"**【当前警长】**: 玩家{self.app.state.sheriff_id}\n\n"
+                if self.app.state.sheriff_history:
+                    sheriff_info += "**【警长历史】**:\n"
+                    for sheriff_id, action in self.app.state.sheriff_history:
+                        sheriff_info += f"玩家{sheriff_id}：{action}警徽\n"
+                
                 prompt = (start_line + common_prefix + phase_indicator + header_footer +
                         role_tip + "\n" +
                         f"**【你的历史白天投票记录】**\n{player_day_votes}\n" +
                         f"**【今日其他玩家发言】**\n{daytime_speeches}\n" +
                         f"**【历史白天发言】**\n{history_speeches}\n" +
                         f"**【历史遗言记录】**\n{last_words}\n" +
+                        (f"**【警长信息】**\n{sheriff_info}\n" if sheriff_info else "") +
                         role_tip + footer + common_suffix)
 
             elif player.identity == "女巫":
@@ -232,6 +320,15 @@ class SpeechHandler:
                     "⚠️ 请务必将你的遗言控制在300字以内！"
                 )
                 
+                # 如果是警长，添加警徽移交提示
+                if player_id == self.app.state.sheriff_id:
+                    role_tip += (
+                        "\n【警长提示】作为警长，你可以在遗言中选择将警徽传递给其他玩家或销毁警徽。\n"
+                        "- 传递警徽：在遗言中使用[警徽给X]或【警徽给X】格式（X为玩家编号）\n"
+                        "- 销毁警徽：在遗言中使用[销毁警徽]或【销毁警徽】\n"
+                        "如果不做选择，警徽将自动销毁。\n"
+                    )
+                
                 # 读取女巫的药水使用状态
                 save_used = self.app.state.witch_save_used.get(player_id, False)
                 poison_used = self.app.state.witch_poison_used.get(player_id, False)
@@ -242,6 +339,16 @@ class SpeechHandler:
                 player_night_votes = self._read_player_history_night_votes(player_id)
                 daytime_speeches = self._read_day_speeches()
                 history_speeches = self._read_history_day_speeches()
+                
+                # 添加警长历史信息
+                sheriff_info = ""
+                if self.app.state.sheriff_id is not None:
+                    sheriff_info = f"**【当前警长】**: 玩家{self.app.state.sheriff_id}\n\n"
+                if self.app.state.sheriff_history:
+                    sheriff_info += "**【警长历史】**:\n"
+                    for sheriff_id, action in self.app.state.sheriff_history:
+                        sheriff_info += f"玩家{sheriff_id}：{action}警徽\n"
+                
                 prompt = (start_line + common_prefix + phase_indicator + header_footer +
                         role_tip + "\n" +
                         drug_status +
@@ -250,6 +357,7 @@ class SpeechHandler:
                         f"**【今日其他玩家发言】**\n{daytime_speeches}\n" +
                         f"**【历史白天发言】**\n{history_speeches}\n" +
                         f"**【历史遗言记录】**\n{last_words}\n" +
+                        (f"**【警长信息】**\n{sheriff_info}\n" if sheriff_info else "") +
                         role_tip + footer + common_suffix)
 
             # 日志记录开始遗言
@@ -286,12 +394,26 @@ class SpeechHandler:
             
             # 获取警长竞选发言
             sheriff_speeches = ""
-            if self.app.state.sheriff_id is not None:
-                sheriff_speeches = f"**【当前警长】**: 玩家{self.app.state.sheriff_id}\n\n"
-            
             if self.app.state.day == 0:  # 第0天是警长竞选阶段
-                sheriff_speeches += self._read_sheriff_speeches()
-                
+                sheriff_speeches = self._read_sheriff_speeches()
+                # 添加警长竞选阶段的特殊提示
+                phase_indicator = "**【当前阶段】**\n警长竞选阶段\n"
+                # 添加警长竞选阶段的特殊提示
+                if player.identity == "平民":
+                    role_tip = "**【角色提示】**\n你是一个平民，现在是警长竞选阶段。你需要通过发言来竞选警长。警长在白天投票时拥有1.5票的投票权。\n"
+                elif player.identity == "狼人":
+                    role_tip = "**【角色提示】**\n你是一个狼人，现在是警长竞选阶段。你需要通过发言来竞选警长。警长在白天投票时拥有1.5票的投票权。\n"
+                elif player.identity == "预言家":
+                    role_tip = "**【角色提示】**\n你是一个预言家，现在是警长竞选阶段。你需要通过发言来竞选警长。警长在白天投票时拥有1.5票的投票权。\n"
+                elif player.identity == "猎人":
+                    role_tip = "**【角色提示】**\n你是一个猎人，现在是警长竞选阶段。你需要通过发言来竞选警长。警长在白天投票时拥有1.5票的投票权。\n"
+                elif player.identity == "女巫":
+                    role_tip = "**【角色提示】**\n你是一个女巫，现在是警长竞选阶段。你需要通过发言来竞选警长。警长在白天投票时拥有1.5票的投票权。\n"
+            else:
+                phase_indicator = "**【当前阶段】**\n白天发言阶段\n"
+                if self.app.state.sheriff_id is not None:
+                    sheriff_speeches = f"**【当前警长】**: 玩家{self.app.state.sheriff_id}\n\n"
+            
             # 获取玩家自己的警长竞选投票
             player_sheriff_vote = ""
             if self.app.state.sheriff_id is not None:
@@ -326,13 +448,22 @@ class SpeechHandler:
                 history_votes = self._read_history_day_votes()
                 prompt = (start_line + common_prefix + phase_indicator + header_footer +
                           role_tip + "\n" +
-                          f"**【你的历史白天投票记录】**\n{player_day_votes}\n" +
-                          (f"**【你的警长竞选投票】**\n{player_sheriff_vote}\n" if player_sheriff_vote else "") +
-                          f"**【今日其他玩家发言】**\n{daytime_speeches}\n" +
-                          (f"**【警长竞选发言】**\n{sheriff_speeches}\n" if sheriff_speeches else "") +
-                          f"**【历史白天发言】**\n{history_speeches}\n" +
-                          f"**【历史遗言记录】**\n{last_words}\n" +
-                          role_tip + footer + common_suffix)
+                          f"**【你的历史白天投票记录】**\n{player_day_votes}\n"
+                          + (f"**【你的警长竞选投票】**\n{player_sheriff_vote}\n" if player_sheriff_vote else "") +
+                          f"**【今日其他玩家发言】**\n{daytime_speeches}\n"
+                          + (f"**【警长竞选发言】**\n{sheriff_speeches}\n" if sheriff_speeches else "") +
+                          f"**【历史白天发言】**\n{history_speeches}\n"
+                          + f"**【历史遗言记录】**\n{last_words}\n"
+                          + role_tip + footer + common_suffix +
+                          f"\n**【游戏状态】**\n"
+                          f"当前天数：{self.app.state.day}\n"
+                          f"存活玩家：{', '.join([str(p_id) for p_id in alive_players])}\n"
+                          f"你的身份：{player.identity}\n"
+                          f"**【游戏状态】**\n"
+                          f"当前天数：{self.app.state.day}\n"
+                          f"存活玩家：{', '.join([str(p_id) for p_id in alive_players])}\n"
+                          f"你的身份：{player.identity}\n"
+                          f"请发表你的发言（300字以内）：")
 
             elif player.identity == "狼人":
                 role_tip = (
@@ -370,7 +501,16 @@ class SpeechHandler:
                           f"**【今日其他玩家发言】**\n{daytime_speeches}\n" +
                           f"**【历史白天发言】**\n{history_speeches}\n" +
                           f"**【历史遗言记录】**\n{last_words}\n" +
-                          role_tip + footer + common_suffix)
+                          role_tip + footer + common_suffix +
+                          f"\n**【游戏状态】**\n"
+                          f"当前天数：{self.app.state.day}\n"
+                          f"存活玩家：{', '.join([str(p_id) for p_id in alive_players])}\n"
+                          f"你的身份：{player.identity}\n"
+                          f"**【游戏状态】**\n"
+                          f"当前天数：{self.app.state.day}\n"
+                          f"存活玩家：{', '.join([str(p_id) for p_id in alive_players])}\n"
+                          f"你的身份：{player.identity}\n"
+                          f"请发表你的发言（300字以内）：")
 
             elif player.identity == "预言家":
                 role_tip = (
@@ -408,20 +548,29 @@ class SpeechHandler:
                           f"**【你的历史白天投票记录】**\n{player_day_votes}\n" +
                           f"**【你的历史夜晚投票记录(查验)】**\n{player_night_votes}\n" +
                           f"**【今日其他玩家发言】**\n{daytime_speeches}\n" +
+                          (f"**【警长竞选发言】**\n{sheriff_speeches}\n" if sheriff_speeches else "") +
                           f"**【历史白天发言】**\n{history_speeches}\n" +
                           check_info +
                           f"**【历史遗言记录】**\n{last_words}\n" +
-                          role_tip + footer + common_suffix)
+                          role_tip + footer + common_suffix +
+                          f"\n**【游戏状态】**\n"
+                          f"当前天数：{self.app.state.day}\n"
+                          f"存活玩家：{', '.join([str(p_id) for p_id in alive_players])}\n"
+                          f"你的身份：{player.identity}\n"
+                          f"**【游戏状态】**\n"
+                          f"当前天数：{self.app.state.day}\n"
+                          f"存活玩家：{', '.join([str(p_id) for p_id in alive_players])}\n"
+                          f"你的身份：{player.identity}\n"
+                          f"请发表你的发言（300字以内）：")
 
             elif player.identity == "猎人":
                 role_tip = (
-                    "【提示-猎人】作为猎人，你拥有死后带走一名玩家的能力！\n"
-                    "**重要提示：如果你被淘汰，你可以选择带走一名玩家。**\n"
-                    "结合已知信息，分析局势，找出最可疑的目标。\n"
-                    "重点关注发言逻辑漏洞和行为异常的玩家。\n"
-                    "如果局势不明朗，选择保守发言，避免成为狼人首刀目标。\n"
-                    "建立与其他好人的信任关系，掩护可能的预言家。\n"
-                    "⚠️ 请务必将你的发言控制在300字以内！"
+                    "【猎人提示】作为猎人，你可以在遗言中选择带走一名玩家！\n"
+                    "使用以下任意格式：\n"
+                    "[开枪X]或【开枪X】（X为玩家编号）\n"
+                    "- [带走X]或【带走X】\n"
+                    "- 直接说开枪X或带走X\n"
+                    "如果不做选择，将不会带走任何玩家。\n"
                 )
                 # 在第一天时插入 day1_notice
                 role_tip += day1_notice
@@ -444,9 +593,19 @@ class SpeechHandler:
                           role_tip + "\n" +
                           f"**【你的历史白天投票记录】**\n{player_day_votes}\n" +
                           f"**【今日其他玩家发言】**\n{daytime_speeches}\n" +
+                          (f"**【警长竞选发言】**\n{sheriff_speeches}\n" if sheriff_speeches else "") +
                           f"**【历史白天发言】**\n{history_speeches}\n" +
                           f"**【历史遗言记录】**\n{last_words}\n" +
-                          role_tip + footer + common_suffix)
+                          role_tip + footer + common_suffix +
+                          f"\n**【游戏状态】**\n"
+                          f"当前天数：{self.app.state.day}\n"
+                          f"存活玩家：{', '.join([str(p_id) for p_id in alive_players])}\n"
+                          f"你的身份：{player.identity}\n"
+                          f"**【游戏状态】**\n"
+                          f"当前天数：{self.app.state.day}\n"
+                          f"存活玩家：{', '.join([str(p_id) for p_id in alive_players])}\n"
+                          f"你的身份：{player.identity}\n"
+                          f"请发表你的发言（300字以内）：")
 
             elif player.identity == "女巫":
                 role_tip = (
@@ -490,9 +649,19 @@ class SpeechHandler:
                           f"**【你的历史白天投票记录】**\n{player_day_votes}\n" +
                           f"**【你的历史夜晚药水使用记录】**\n{player_night_votes}\n" +
                           f"**【今日其他玩家发言】**\n{daytime_speeches}\n" +
+                          (f"**【警长竞选发言】**\n{sheriff_speeches}\n" if sheriff_speeches else "") +
                           f"**【历史白天发言】**\n{history_speeches}\n" +
                           f"**【历史遗言记录】**\n{last_words}\n" +
-                          role_tip + footer + common_suffix)
+                          role_tip + footer + common_suffix +
+                          f"\n**【游戏状态】**\n"
+                          f"当前天数：{self.app.state.day}\n"
+                          f"存活玩家：{', '.join([str(p_id) for p_id in alive_players])}\n"
+                          f"你的身份：{player.identity}\n"
+                          f"**【游戏状态】**\n"
+                          f"当前天数：{self.app.state.day}\n"
+                          f"存活玩家：{', '.join([str(p_id) for p_id in alive_players])}\n"
+                          f"你的身份：{player.identity}\n"
+                          f"请发表你的发言（300字以内）：")
 
             # 日志记录开始发言
             identity_display = player.identity if player.identity != "空" else "玩家"
@@ -531,151 +700,32 @@ class SpeechHandler:
                       f"**【历史白天发言】**\n{history_speeches}\n" +
                       f"**【历史夜晚狼人发言】**\n{history_night_speeches}\n" +
                       f"**【历史遗言记录】**\n{last_words}\n" +
-                      night_role_tip + footer + common_suffix)
+                      night_role_tip + footer + common_suffix +
+                      f"\n**【游戏状态】**\n"
+                      f"当前天数：{self.app.state.day}\n"
+                      f"存活玩家：{', '.join([str(p_id) for p_id in alive_players])}\n"
+                      f"你的身份：{player.identity}\n"
+                      f"**【游戏状态】**\n"
+                      f"当前天数：{self.app.state.day}\n"
+                      f"存活玩家：{', '.join([str(p_id) for p_id in alive_players])}\n"
+                      f"你的身份：{player.identity}\n"
+                      f"请发表你的发言（300字以内）：")
             self.app.log_system(f"狼人 {player_id} 开始夜晚发言...")
 
         def speech_callback(final_answer_text):
             text_parsed = final_answer_text.replace("\\n", "\n")
-            player.speech_history.append(text_parsed)
+            
+            # 保存发言到文件
             if self.app.state.phase == "day":
-                if self.app.state.day == 0:
-                    save_sheriff_speech(player_id, self.app.state.day, text_parsed)
-                else:
-                    save_daytime_speech(player_id, self.app.state.day, text_parsed)
+                save_daytime_speech(player_id, self.app.state.day, text_parsed)
             else:
                 save_night_speech(player_id, self.app.state.day, text_parsed)
-
-            # 检查是否是猎人的遗言，如果是，处理带人逻辑
-            if player.identity == "猎人" and not player.alive:
-                # 用正则表达式匹配各种格式中的数字，表示猎人要带走的玩家
-                # 1. 英文方括号[玩家X]和[X]
-                player_brackets = re.findall(r'\[玩家(\d+)\]', text_parsed)
-                brackets_number = re.findall(r'\[(\d+)\]', text_parsed)
-                
-                # 2. 英文方括号的[弃票]或[随机]
-                eng_random_choice = re.search(r'\[随机\]', text_parsed)
-                eng_abstain_choice = re.search(r'\[弃票\]', text_parsed)
-                
-                # 3. 中文方括号【玩家X】和【X】
-                chinese_player_brackets = re.findall(r'【玩家(\d+)】', text_parsed)
-                chinese_brackets_number = re.findall(r'【(\d+)】', text_parsed)
-                
-                # 4. 中文方括号的【弃票】或【随机】
-                cn_random_choice = re.search(r'【随机】', text_parsed)
-                cn_abstain_choice = re.search(r'【弃票】', text_parsed)
-                
-                # 5. 直接说弃票或随机（无括号）
-                direct_random_choice = re.search(r'(?<!\[|【)随机(?!\]|】)', text_parsed)
-                direct_abstain_choice = re.search(r'(?<!\[|【)弃票(?!\]|】)', text_parsed)
-                
-                # 6. 直接提及检查
-                direct_player_mention = re.findall(r'玩家\s*(\d+)', text_parsed)
-                direct_number = re.findall(r'(?<![【\[（\(])\b(\d+)\b(?![\]】）\)])', text_parsed)  # 查找不在括号内的数字
-                
-                target_player_id = None
-                
-                # 按照优先级依次处理
-                if player_brackets:
-                    # 1. 优先使用"[玩家X]"格式
-                    target_id_str = player_brackets[-1]
-                    try:
-                        target_player_id = int(target_id_str)
-                    except ValueError:
-                        self.app.log_system(f"[警告] 无法解析猎人 {player_id} 的带人目标编号 (英文方括号玩家数字)，带人作废。")
-                elif brackets_number:
-                    # 1. 使用"[X]"格式
-                    target_id_str = brackets_number[-1]
-                    try:
-                        target_player_id = int(target_id_str)
-                    except ValueError:
-                        self.app.log_system(f"[警告] 无法解析猎人 {player_id} 的带人目标编号 (英文方括号数字)，带人作废。")
-                # 2. 英文方括号的随机/弃票选择
-                elif eng_random_choice:
-                    # 从存活的非猎人玩家中随机选择一名
-                    alive_players = [p_id for p_id, p in self.app.state.players.items() 
-                                    if p.alive and p.exists and p_id != player_id]
-                    if alive_players:
-                        import random
-                        target_player_id = random.choice(alive_players)
-                        self.app.log_system(f"猎人 {player_id} 选择[随机]带人，系统选择了玩家 {target_player_id}")
-                elif eng_abstain_choice:
-                    self.app.log_system(f"猎人 {player_id} 选择[弃票]放弃带人")
-                # 3. 中文方括号玩家格式
-                elif chinese_player_brackets:
-                    target_id_str = chinese_player_brackets[-1]
-                    try:
-                        target_player_id = int(target_id_str)
-                    except ValueError:
-                        self.app.log_system(f"[警告] 无法解析猎人 {player_id} 的带人目标编号 (中文方括号玩家数字)，带人作废。")
-                elif chinese_brackets_number:
-                    target_id_str = chinese_brackets_number[-1]
-                    try:
-                        target_player_id = int(target_id_str)
-                    except ValueError:
-                        self.app.log_system(f"[警告] 无法解析猎人 {player_id} 的带人目标编号 (中文方括号数字)，带人作废。")
-                # 4. 中文方括号的随机/弃票选择
-                elif cn_random_choice:
-                    alive_players = [p_id for p_id, p in self.app.state.players.items() 
-                                    if p.alive and p.exists and p_id != player_id]
-                    if alive_players:
-                        import random
-                        target_player_id = random.choice(alive_players)
-                        self.app.log_system(f"猎人 {player_id} 选择【随机】带人，系统选择了玩家 {target_player_id}")
-                elif cn_abstain_choice:
-                    self.app.log_system(f"猎人 {player_id} 选择【弃票】放弃带人")
-                # 5. 直接表达的随机/弃票选择（无括号）
-                elif direct_random_choice:
-                    alive_players = [p_id for p_id, p in self.app.state.players.items() 
-                                    if p.alive and p.exists and p_id != player_id]
-                    if alive_players:
-                        import random
-                        target_player_id = random.choice(alive_players)
-                        self.app.log_system(f"猎人 {player_id} 直接选择随机带人，系统选择了玩家 {target_player_id}")
-                elif direct_abstain_choice:
-                    self.app.log_system(f"猎人 {player_id} 直接选择弃票放弃带人")
-                # 6. 最后尝试直接从文本中找出玩家提及或数字
-                elif direct_player_mention:
-                    target_id_str = direct_player_mention[-1]
-                    try:
-                        target_player_id = int(target_id_str)
-                        self.app.log_system(f"猎人 {player_id} 选择了不带括号的目标：玩家 {target_player_id}")
-                    except ValueError:
-                        self.app.log_system(f"[警告] 无法解析猎人 {player_id} 的直接玩家提及，带人作废。")
-                elif direct_number:
-                    target_id_str = direct_number[-1]
-                    try:
-                        target_player_id = int(target_id_str)
-                        self.app.log_system(f"猎人 {player_id} 选择了不带括号的目标：{target_player_id}")
-                    except ValueError:
-                        self.app.log_system(f"[警告] 无法解析猎人 {player_id} 的直接数字提及，带人作废。")
-                
-                # 如果有有效的带人目标，执行带人逻辑
-                if target_player_id is not None:
-                    target_player = self.app.state.players.get(target_player_id)
-                    if target_player and target_player.exists and target_player.alive:
-                        # 将目标玩家标记为死亡
-                        target_player.alive = False
-                        self.app.state.dead_today.append(target_player_id)
-                        self.app.state.current_day_summary["deaths"].append((target_player_id, "被猎人带走死亡"))
-                        
-                        # 更新UI，启用目标玩家的遗言按钮
-                        self.app.ui_handler.app.lastword_buttons[target_player_id].config(state=tk.NORMAL)
-                        
-                        # 记录猎人带人
-                        self.app.log_system(f"猎人 {player_id} 带走了玩家 {target_player_id}！")
-                        self.app.summary_text.insert(tk.END, f"猎人玩家 {player_id} 带走了玩家 {target_player_id}！\n", f"p{player_id}")
-                        self.app.summary_text.see(tk.END)
-                        
-                        # 刷新按钮状态，确保死亡玩家的遗言按钮可用
-                        self.app.game_logic_handler.update_buttons_for_phase(self.app.state.phase)
-                        
-                        # 检查游戏是否结束
-                        game_over, winner = self.app.state.check_game_over()
-                        if game_over:
-                            self.app.game_logic_handler.end_game(winner)
-                    else:
-                        self.app.log_system(f"[警告] 猎人 {player_id} 选择的带人目标 {target_player_id} 不存在或已死亡，带人作废。")
-
+            
+            # 在游戏摘要中显示发言
+            self.app.summary_text.insert(tk.END, f"玩家 {player_id} 的发言：\n", f"p{player_id}")
+            self.app.summary_text.insert(tk.END, f"{text_parsed}\n\n", f"p{player_id}")
+            self.app.summary_text.see(tk.END)
+            
             # 根据 TTS 开关状态播放语音
             if self.app.tts_enabled:
                 play_tts(text_parsed, player_id, self.app.tts_speed)
@@ -926,3 +976,274 @@ class SpeechHandler:
                 except Exception as e:
                     self.app.log_system(f"[警告] 读取玩家 {player_id} 警长竞选投票失败: {e}")
         return player_sheriff_vote
+
+    def prepare_last_words(self, player_id):
+        """准备玩家遗言"""
+        player = self.app.state.players[player_id]
+        
+        # 检查玩家是否存在且已死亡
+        if not player.exists or player.alive:
+            self.app.log_system(f"[错误] 玩家 {player_id} 不存在或未死亡，无法发表遗言")
+            return
+        
+        # 记录玩家身份信息
+        identity_info = f"你的身份是：{player.identity}"
+        
+        # 构建历史死亡信息
+        death_history = "【历史死亡玩家】\n"
+        for day, summary in enumerate(self.app.state.history):
+            if summary.get("deaths"):
+                death_history += f"第{day}天：\n"
+                for pid, cause in summary.get("deaths", []):
+                    death_history += f"玩家{pid}（{self.app.state.players[pid].identity}）{cause}\n"
+        
+        # 添加今天死亡的玩家信息
+        if self.app.state.current_day_summary.get("deaths"):
+            death_history += f"第{self.app.state.day}天：\n"
+            for pid, cause in self.app.state.current_day_summary.get("deaths", []):
+                if pid != player_id:  # 不包括当前玩家自己
+                    death_history += f"玩家{pid}（{self.app.state.players[pid].identity}）{cause}\n"
+        
+        # 构建当前游戏状态信息
+        game_state_info = "【当前游戏状态】\n"
+        alive_players = [p_id for p_id, p in self.app.state.players.items() if p.alive and p.exists]
+        game_state_info += f"存活玩家：{', '.join([str(p_id) for p_id in alive_players])}\n"
+        
+        # 根据身份提供不同的提示
+        identity_tip = ""
+        
+        # 检查是否是警长
+        is_sheriff = player_id == self.app.state.sheriff_id
+        sheriff_tip = ""
+        if is_sheriff:
+            sheriff_tip = (
+                "【警长提示】你是当前的警长。在遗言中，你可以选择将警徽传递给其他玩家或销毁警徽。\n"
+                "- 传递警徽：在遗言中使用[警徽给X]或【警徽给X】格式（X为玩家编号），或直接说'警徽给X'\n"
+                "- 销毁警徽：在遗言中使用[销毁警徽]或【销毁警徽】，或直接说'销毁警徽'\n"
+                "如果不做选择，警徽将自动销毁。\n"
+                )
+
+        
+        # 通用遗言提示
+        last_words_tip = (
+            "【遗言提示】这是你在游戏中的最后发言机会，请充分利用这个机会！\n"
+            "你可以揭示自己的身份，分享你对局势的看法，或者为同阵营的玩家提供建议。\n"
+            "请保持发言简洁明了，控制在300字以内。\n"
+            "⚠️ 请务必将你的发言控制在300字以内！"
+        )
+        
+        # 根据不同身份提供特定提示
+        if player.identity == "平民":
+            identity_tip = (
+                "【平民提示】作为平民，你的遗言可以帮助其他平民找出狼人！\n"
+                "分享你的怀疑对象和推理过程，这对存活的平民非常有价值。\n"
+                "如果你有关于某些玩家身份的确定信息，请务必在遗言中说明。\n"
+            )
+        elif player.identity == "狼人":
+            identity_tip = (
+                "【狼人提示】作为狼人，你的遗言可以帮助其他狼人！\n"
+                "你可以尝试误导好人，或者为其他狼人提供信息。\n"
+                "但请注意，不要过于明显地暴露身份。\n"
+            )
+        elif player.identity == "预言家":
+            identity_tip = (
+                "【预言家提示】作为预言家，你的遗言可以分享你的查验信息！\n"
+                "你可以告诉其他玩家你查验过的玩家身份，这对好人阵营很有帮助。\n"
+                "但请注意，不要过于明显地暴露身份。\n"
+            )
+        elif player.identity == "猎人":
+            identity_tip = (
+                "【猎人提示】作为猎人，你可以在遗言中选择带走一名玩家！\n"
+                "使用以下任意格式：\n"
+                "[开枪X]或【开枪X】（X为玩家编号）\n"
+                "- [带走X]或【带走X】\n"
+                "- 直接说开枪X或带走X\n"
+                "如果不做选择，将不会带走任何玩家。\n"
+            )
+        elif player.identity == "女巫":
+            identity_tip = (
+                "【女巫提示】作为女巫，你的遗言可以帮助其他好人！\n"
+                "你可以分享你对局势的看法，或者为其他玩家提供建议。\n"
+                "但请注意，不要过于明显地暴露身份。\n"
+            )
+        
+        # 检查是否是警长，如果是，添加警长提示
+        if player_id == self.app.state.sheriff_id:
+            sheriff_tip = (
+                "\n【警长提示】作为警长，你可以在遗言中选择将警徽传递给其他玩家或销毁警徽。\n"
+                "请在遗言中使用以下格式之一：\n"
+                "- [警徽给X] 或 【警徽给X】（X为玩家编号）\n"
+                "- [销毁警徽] 或 【销毁警徽】\n"
+                "如果不做选择，警徽将自动销毁。\n"
+            )
+            # 将警长提示添加到身份提示中
+            identity_tip += sheriff_tip
+        
+        # 读取玩家的投票历史
+        player_day_votes = self._read_player_history_day_votes(player_id)
+        player_night_votes = self._read_player_history_night_votes(player_id)
+        
+        # 读取当前天数的所有玩家发言
+        daytime_speeches = self._read_day_speeches()
+        
+        # 读取历史天数的所有玩家发言
+        history_speeches = self._read_history_day_speeches()
+        
+        # 读取历史天数的所有玩家投票
+        history_votes = self._read_history_day_votes()
+        
+        # 读取历史遗言
+        last_words = self._read_last_words()
+        
+        # 警长历史记录
+        sheriff_history = "【警长历史记录】\n"
+        for sheriff_id, action in self.app.state.sheriff_history:
+            sheriff_history += f"玩家{sheriff_id}：{action}警徽\n"
+        if not self.app.state.sheriff_history:
+            sheriff_history += "无警长记录\n"
+        
+        # 构建完整的提示信息
+        prompt = (
+            f"玩家 {player_id} 开始发表遗言...\n\n"
+            f"【当前阶段：遗言阶段】\n"
+            f"{identity_info}\n\n"
+            f"{death_history}\n"
+            f"{game_state_info}\n"
+            f"{sheriff_history}\n"
+            f"{sheriff_tip if is_sheriff else ''}"
+            f"{identity_tip}\n"
+            f"{last_words_tip}\n\n"
+            f"**【你的历史白天投票记录】**\n{player_day_votes}\n"
+            f"**【你的历史夜晚投票记录】**\n{player_night_votes}\n"
+            f"**【今日其他玩家发言】**\n{daytime_speeches}\n"
+            f"**【历史白天发言】**\n{history_speeches}\n"
+            f"**【历史白天投票】**\n{history_votes}\n"
+            f"**【历史遗言记录】**\n{last_words}\n"
+            f"{last_words_tip}\n"
+            f"**【游戏状态】**\n"
+            f"当前天数：{self.app.state.day}\n"
+            f"存活玩家：{', '.join([str(p_id) for p_id in alive_players])}\n"
+            f"你的身份：{player.identity}\n"
+            f"**【游戏状态】**\n"
+            f"当前天数：{self.app.state.day}\n"
+            f"存活玩家：{', '.join([str(p_id) for p_id in alive_players])}\n"
+            f"你的身份：{player.identity}\n"
+            f"请发表你的遗言（300字以内）："
+        )
+        
+        self.app.log_system(f"玩家 {player_id} 开始发表遗言...")
+        
+        def last_words_callback(final_answer_text):
+            text_parsed = final_answer_text.replace("\\n", "\n")
+            
+            # 检查是否是警长
+            if is_sheriff:
+                # 检查警徽传递
+                sheriff_transfer = re.search(r'\[警徽给(?:玩家)?(\d+)\]|【警徽给(?:玩家)?(\d+)】|警徽给(?:玩家)?(\d+)', text_parsed)
+                if sheriff_transfer:
+                    target_id = int(sheriff_transfer.group(1) or sheriff_transfer.group(2) or sheriff_transfer.group(3))
+                    if target_id in self.app.state.players and self.app.state.players[target_id].exists and self.app.state.players[target_id].alive:
+                        self.app.state.sheriff_id = target_id
+                        self.app.log_system(f"警长 {player_id} 将警徽传递给了玩家 {target_id}")
+                        self.app.summary_text.insert(tk.END, f"警长 {player_id} 将警徽传递给了玩家 {target_id}\n", f"p{player_id}")
+                        self.app.summary_text.see(tk.END)
+                    else:
+                        self.app.log_system(f"警长 {player_id} 尝试将警徽传递给无效的玩家 {target_id}，警徽将被销毁")
+                
+                # 检查警徽销毁
+                sheriff_destroy = re.search(r'\[销毁警徽\]|【销毁警徽】|销毁警徽', text_parsed)
+                if sheriff_destroy:
+                    self.app.state.sheriff_id = None
+                    self.app.log_system(f"警长 {player_id} 销毁了警徽")
+                    self.app.summary_text.insert(tk.END, f"警长 {player_id} 销毁了警徽\n", f"p{player_id}")
+                    self.app.summary_text.see(tk.END)
+            
+            # 检查是否是猎人
+            if player.identity == "猎人":
+                # 检查开枪带走
+                hunter_shot = re.search(r'\[开枪(?:玩家)?(\d+)\]|【开枪(?:玩家)?(\d+)】|开枪(?:玩家)?(\d+)|\[带走(?:玩家)?(\d+)\]|【带走(?:玩家)?(\d+)】|带走(?:玩家)?(\d+)', text_parsed)
+                if hunter_shot:
+                    target_id = int(hunter_shot.group(1) or hunter_shot.group(2) or hunter_shot.group(3) or 
+                                  hunter_shot.group(4) or hunter_shot.group(5) or hunter_shot.group(6))
+                    if target_id in self.app.state.players and self.app.state.players[target_id].exists and self.app.state.players[target_id].alive:
+                        self.app.state.players[target_id].alive = False
+                        self.app.state.dead_today.append(target_id)
+                        self.app.state.current_day_summary["deaths"].append((target_id, "被猎人带走"))
+                        self.app.log_system(f"猎人 {player_id} 带走了玩家 {target_id}")
+                        self.app.summary_text.insert(tk.END, f"猎人 {player_id} 带走了玩家 {target_id}\n", f"p{player_id}")
+                        self.app.summary_text.see(tk.END)
+                        
+                        # 启用遗言按钮
+                        self.app.lastword_buttons[target_id].config(state=tk.NORMAL)
+                        
+                        # 检查游戏是否结束
+                        game_over, winner = self.app.state.check_game_over()
+                        if game_over:
+                            self.app.game_logic_handler.end_game(winner)
+                    else:
+                        self.app.log_system(f"猎人 {player_id} 尝试带走无效的玩家 {target_id}")
+            
+            # 保存遗言记录
+            save_last_words_record(player_id, self.app.state.day, text_parsed)
+            
+            # 根据 TTS 开关状态播放语音
+            if self.app.tts_enabled:
+                play_tts(text_parsed, player_id, self.app.tts_speed)
+            
+            # 检查是否是猎人的遗言，如果是，处理开枪逻辑
+            if player_id == self.app.state.hunter_id:
+                # 用正则表达式匹配各种格式中的数字，表示猎人要开枪的目标
+                # 1. 英文方括号[开枪X]
+                hunter_shoot = re.findall(r'\[开枪(\d+)\]', text_parsed)
+                
+                # 2. 中文方括号【开枪X】
+                cn_hunter_shoot = re.findall(r'【开枪(\d+)】', text_parsed)
+                
+                # 3. 直接提及检查
+                direct_shoot = re.findall(r'开枪\s*(\d+)', text_parsed)
+                
+                target_player_id = None
+                
+                # 按照优先级依次处理
+                if hunter_shoot:
+                    target_id_str = hunter_shoot[-1]
+                    try:
+                        target_player_id = int(target_id_str)
+                    except ValueError:
+                        self.app.log_system(f"[警告] 无法解析猎人 {player_id} 的开枪目标编号。")
+                elif cn_hunter_shoot:
+                    target_id_str = cn_hunter_shoot[-1]
+                    try:
+                        target_player_id = int(target_id_str)
+                    except ValueError:
+                        self.app.log_system(f"[警告] 无法解析猎人 {player_id} 的开枪目标编号。")
+                elif direct_shoot:
+                    target_id_str = direct_shoot[-1]
+                    try:
+                        target_player_id = int(target_id_str)
+                    except ValueError:
+                        self.app.log_system(f"[警告] 无法解析猎人 {player_id} 的开枪目标编号。")
+                
+                # 处理开枪
+                if target_player_id is not None:
+                    target_player = self.app.state.players.get(target_player_id)
+                    if target_player and target_player.exists and target_player.alive:
+                        # 开枪击杀目标
+                        target_player.alive = False
+                        target_player.death_reason = "被猎人开枪击杀"
+                        target_player.death_day = self.app.state.day
+                        
+                        # 更新UI显示死亡状态
+                        self.app.ui_handler.update_player_status(target_player_id)
+                        
+                        # 记录开枪击杀
+                        self.app.log_system(f"猎人 {player_id} 开枪击杀了玩家 {target_player_id}！")
+                        self.app.summary_text.insert(tk.END, f"猎人玩家 {player_id} 开枪击杀了玩家 {target_player_id}！\n", f"p{player_id}")
+                        self.app.summary_text.see(tk.END)
+                    else:
+                        self.app.log_system(f"[警告] 猎人 {player_id} 选择的开枪目标 {target_player_id} 不存在或已死亡。")
+                else:
+                    self.app.log_system(f"猎人 {player_id} 没有选择开枪目标。")
+        
+        self.model_handler.call_model(player.model, prompt, self.app.summary_text, tag=f"p{player_id}",
+                                      callback=last_words_callback, player_id=player_id)

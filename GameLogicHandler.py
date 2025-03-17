@@ -145,7 +145,12 @@ class GameLogicHandler:
         for voter_id, vote_target in self.app.state.day_votes.items():
             if vote_target in self.app.state.players and self.app.state.players[vote_target].exists:
                 valid_votes[voter_id] = vote_target
-                vote_counts[vote_target] = vote_counts.get(vote_target, 0) + 1
+                # 检查投票者是否是警长，如果是则票数为1.5票
+                if voter_id == self.app.state.sheriff_id:
+                    vote_counts[vote_target] = vote_counts.get(vote_target, 0) + 1.5
+                    self.app.log_system(f"警长 {voter_id} 的投票权重为1.5票")
+                else:
+                    vote_counts[vote_target] = vote_counts.get(vote_target, 0) + 1
         self.app.log_system(f"【白天投票结算】有效投票统计: {vote_counts}")
         
         # 处理警长竞选投票（第0天）
@@ -161,6 +166,7 @@ class GameLogicHandler:
                     sheriff_id = candidates[0]
                     if sheriff_id in self.app.state.players and self.app.state.players[sheriff_id].alive:
                         self.app.state.sheriff_id = sheriff_id
+                        self.app.state.sheriff_history.append((sheriff_id, "当选"))
                         self.app.log_system(f"玩家 {sheriff_id} 被选为警长！")
                         # 在游戏摘要中显示警长选举结果
                         self.app.summary_text.insert(tk.END, f"玩家 {sheriff_id} 当选为警长！\n")

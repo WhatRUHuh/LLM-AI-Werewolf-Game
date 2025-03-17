@@ -130,7 +130,16 @@ class VoteHandler:
                           (f"**【警长竞选发言】**\n{sheriff_speeches}\n" if sheriff_speeches else "") +
                           f"**【历史白天发言】**\n{history_speeches}\n" +
                           f"**【历史遗言记录】**:\n{last_words}\n" +
-                          role_tip + footer + common_suffix)
+                          role_tip + footer + common_suffix +
+                          f"\n**【游戏状态】**\n"
+                          f"当前天数：{self.app.state.day}\n"
+                          f"存活玩家：{', '.join([str(p_id) for p_id in [p.player_id for p in self.app.state.players.values() if p.exists and p.alive]])}\n"
+                          f"你的身份：{player.identity}\n"
+                          f"**【游戏状态】**\n"
+                          f"当前天数：{self.app.state.day}\n"
+                          f"存活玩家：{', '.join([str(p_id) for p_id in [p.player_id for p in self.app.state.players.values() if p.exists and p.alive]])}\n"
+                          f"你的身份：{player.identity}\n"
+                          f"请发表你的投票（300字以内）：")
             elif player.identity == "狼人":
                 if self.app.state.day == 0:
                     role_tip = ("【提示-狼人】作为狼人，请结合所有玩家的竞选发言，选出你认为对狼人最有利的警长人选。"
@@ -157,7 +166,16 @@ class VoteHandler:
                           f"**【历史夜晚狼人发言】**\n{history_night_speeches}\n" +
                           f"**【历史遗言记录】**:\n{last_words}\n" +
                           f"**【队友信息】: 狼人队友：{teammates}**\n" +
-                          role_tip + footer + common_suffix)
+                          role_tip + footer + common_suffix +
+                          f"\n**【游戏状态】**\n"
+                          f"当前天数：{self.app.state.day}\n"
+                          f"存活玩家：{', '.join([str(p_id) for p_id in [p.player_id for p in self.app.state.players.values() if p.exists and p.alive]])}\n"
+                          f"你的身份：{player.identity}\n"
+                          f"**【游戏状态】**\n"
+                          f"当前天数：{self.app.state.day}\n"
+                          f"存活玩家：{', '.join([str(p_id) for p_id in [p.player_id for p in self.app.state.players.values() if p.exists and p.alive]])}\n"
+                          f"你的身份：{player.identity}\n"
+                          f"请发表你的投票（300字以内）：")
             elif player.identity == "预言家":
                 if self.app.state.day == 0:
                     role_tip = ("【提示-预言家】作为预言家，请结合所有玩家的竞选发言以及你的查验信息，"
@@ -185,7 +203,16 @@ class VoteHandler:
                           f"**【历史白天发言】**\n{history_speeches}\n" +
                           check_info + "\n" +
                           f"**【历史遗言记录】**:\n{last_words}\n" +
-                          role_tip + footer + common_suffix)
+                          role_tip + footer + common_suffix +
+                          f"\n**【游戏状态】**\n"
+                          f"当前天数：{self.app.state.day}\n"
+                          f"存活玩家：{', '.join([str(p_id) for p_id in [p.player_id for p in self.app.state.players.values() if p.exists and p.alive]])}\n"
+                          f"你的身份：{player.identity}\n"
+                          f"**【游戏状态】**\n"
+                          f"当前天数：{self.app.state.day}\n"
+                          f"存活玩家：{', '.join([str(p_id) for p_id in [p.player_id for p in self.app.state.players.values() if p.exists and p.alive]])}\n"
+                          f"你的身份：{player.identity}\n"
+                          f"请发表你的投票（300字以内）：")
             
             elif player.identity == "猎人":
                 if self.app.state.day == 0:
@@ -216,7 +243,16 @@ class VoteHandler:
                           (f"**【警长竞选发言】**\n{sheriff_speeches}\n" if sheriff_speeches else "") +
                           f"**【历史白天发言】**\n{history_speeches}\n" +
                           f"**【历史遗言记录】**:\n{last_words}\n" +
-                          role_tip + footer + common_suffix)
+                          role_tip + footer + common_suffix +
+                          f"\n**【游戏状态】**\n"
+                          f"当前天数：{self.app.state.day}\n"
+                          f"存活玩家：{', '.join([str(p_id) for p_id in [p.player_id for p in self.app.state.players.values() if p.exists and p.alive]])}\n"
+                          f"你的身份：{player.identity}\n"
+                          f"**【游戏状态】**\n"
+                          f"当前天数：{self.app.state.day}\n"
+                          f"存活玩家：{', '.join([str(p_id) for p_id in [p.player_id for p in self.app.state.players.values() if p.exists and p.alive]])}\n"
+                          f"你的身份：{player.identity}\n"
+                          f"请发表你的投票（300字以内）：")
             
             elif player.identity == "女巫":
                 # 读取女巫的药水使用状态
@@ -253,7 +289,16 @@ class VoteHandler:
                           f"**【今日其他玩家发言】**:\n{daytime_speeches}\n" +
                           f"**【历史白天发言】**\n{history_speeches}\n" +
                           f"**【历史遗言记录】**:\n{last_words}\n" +
-                          role_tip + footer + common_suffix)
+                          role_tip + footer + common_suffix +
+                          f"\n**【游戏状态】**\n"
+                          f"当前天数：{self.app.state.day}\n"
+                          f"存活玩家：{', '.join([str(p_id) for p_id in [p.player_id for p in self.app.state.players.values() if p.exists and p.alive]])}\n"
+                          f"你的身份：{player.identity}\n"
+                          f"**【游戏状态】**\n"
+                          f"当前天数：{self.app.state.day}\n"
+                          f"存活玩家：{', '.join([str(p_id) for p_id in [p.player_id for p in self.app.state.players.values() if p.exists and p.alive]])}\n"
+                          f"你的身份：{player.identity}\n"
+                          f"请发表你的投票（300字以内）：")
 
             self.app.log_system(f"玩家 {player_id} 准备进行白天投票...")
 
@@ -283,7 +328,16 @@ class VoteHandler:
                           f"**【历史白天发言】**\n{history_speeches}\n" +
                           f"**【历史夜晚狼人发言】**\n{history_night_speeches}\n" +
                           f"**【历史遗言记录】**\n{last_words}\n" +
-                          role_tip + footer + common_suffix)
+                          role_tip + footer + common_suffix +
+                          f"\n**【游戏状态】**\n"
+                          f"当前天数：{self.app.state.day}\n"
+                          f"存活玩家：{', '.join([str(p_id) for p_id in [p.player_id for p in self.app.state.players.values() if p.exists and p.alive]])}\n"
+                          f"你的身份：{player.identity}\n"
+                          f"**【游戏状态】**\n"
+                          f"当前天数：{self.app.state.day}\n"
+                          f"存活玩家：{', '.join([str(p_id) for p_id in [p.player_id for p in self.app.state.players.values() if p.exists and p.alive]])}\n"
+                          f"你的身份：{player.identity}\n"
+                          f"请发表你的投票（300字以内）：")
             elif player.identity == "预言家":  # 预言家夜晚查验
                 role_tip = ("【提示-夜晚预言家】作为预言家，现在是夜晚查验阶段，请结合所有已知信息（今日白天投票总结、其他玩家发言、查验信息及遗言记录），"
                             "做出你认为最合理的查验选择，并务必说明理由。请注意保持隐晦，确保查验内容控制在300字以内！")
@@ -303,7 +357,16 @@ class VoteHandler:
                           f"**【历史白天发言】**\n{history_speeches}\n" +
                           check_info + "\n" +
                           f"**【历史遗言记录】**\n{last_words}\n" +
-                          role_tip + footer + common_suffix)
+                          role_tip + footer + common_suffix +
+                          f"\n**【游戏状态】**\n"
+                          f"当前天数：{self.app.state.day}\n"
+                          f"存活玩家：{', '.join([str(p_id) for p_id in [p.player_id for p in self.app.state.players.values() if p.exists and p.alive]])}\n"
+                          f"你的身份：{player.identity}\n"
+                          f"**【游戏状态】**\n"
+                          f"当前天数：{self.app.state.day}\n"
+                          f"存活玩家：{', '.join([str(p_id) for p_id in [p.player_id for p in self.app.state.players.values() if p.exists and p.alive]])}\n"
+                          f"你的身份：{player.identity}\n"
+                          f"请发表你的投票（300字以内）：")
             elif player.identity == "女巫":  # 女巫夜晚使用药水
                 # 读取女巫的药水使用状态
                 save_used = self.app.state.witch_save_used.get(player_id, False)
@@ -367,7 +430,16 @@ class VoteHandler:
                           f"**【今日其他玩家发言】**\n{daytime_speeches}\n" +
                           f"**【历史白天发言】**\n{history_speeches}\n" +
                           f"**【历史遗言记录】**\n{last_words}\n" +
-                          role_tip + footer + common_suffix)
+                          role_tip + footer + common_suffix +
+                          f"\n**【游戏状态】**\n"
+                          f"当前天数：{self.app.state.day}\n"
+                          f"存活玩家：{', '.join([str(p_id) for p_id in [p.player_id for p in self.app.state.players.values() if p.exists and p.alive]])}\n"
+                          f"你的身份：{player.identity}\n"
+                          f"**【游戏状态】**\n"
+                          f"当前天数：{self.app.state.day}\n"
+                          f"存活玩家：{', '.join([str(p_id) for p_id in [p.player_id for p in self.app.state.players.values() if p.exists and p.alive]])}\n"
+                          f"你的身份：{player.identity}\n"
+                          f"请发表你的投票（300字以内）：")
             else:  # 其他角色如猎人等
                 # 通用的夜晚投票提示
                 role_tip = (f"【提示-夜晚{player.identity}】作为{player.identity}，现在是夜晚阶段，"
@@ -386,7 +458,16 @@ class VoteHandler:
                           f"**【今日其他玩家发言】**\n{daytime_speeches}\n" +
                           f"**【历史白天发言】**\n{history_speeches}\n" +
                           f"**【历史遗言记录】**\n{last_words}\n" +
-                          role_tip + footer + common_suffix)
+                          role_tip + footer + common_suffix +
+                          f"\n**【游戏状态】**\n"
+                          f"当前天数：{self.app.state.day}\n"
+                          f"存活玩家：{', '.join([str(p_id) for p_id in [p.player_id for p in self.app.state.players.values() if p.exists and p.alive]])}\n"
+                          f"你的身份：{player.identity}\n"
+                          f"**【游戏状态】**\n"
+                          f"当前天数：{self.app.state.day}\n"
+                          f"存活玩家：{', '.join([str(p_id) for p_id in [p.player_id for p in self.app.state.players.values() if p.exists and p.alive]])}\n"
+                          f"你的身份：{player.identity}\n"
+                          f"请发表你的投票（300字以内）：")
 
             self.app.log_system(f"{player.identity} 玩家 {player_id} 准备进行夜晚投票/查验...")
 
