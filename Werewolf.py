@@ -196,6 +196,9 @@ class WerewolfGameApp:
         center_y = int(screen_height/2 - window_height/2)
         self.root.geometry(f'{window_width}x{window_height}+{center_x}+{center_y}')
         
+        # 设置窗口关闭事件处理
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+        
         create_record_folder()
         self.player_count = 8    # 默认玩家人数
         self.wolf_count = 2      # 默认狼人数量
@@ -308,6 +311,9 @@ class WerewolfGameApp:
 
     def restart_game(self):
         """重新开始游戏"""
+        # 先清理文件夹
+        self.cleanup_folders()
+        # 然后重新开始游戏
         self.game_logic_handler.restart_game()
 
     def update_player_identity(self, player_id, new_identity):
@@ -354,9 +360,18 @@ class WerewolfGameApp:
     # ---------------------- 遗言阶段 ----------------------
     # 删除 record_last_words 方法，该功能由 SpeechHandler 中的逻辑处理
 
-    def end_game(self, winner):
-        """结束游戏"""
+    def end_game(self, winner, cleanup=False):
+        """结束游戏
+        
+        Args:
+            winner: 胜利方，"villagers"表示好人阵营胜利，"wolves"表示狼人阵营胜利
+            cleanup: 是否清理record和log文件夹，默认为False
+        """
         self.game_logic_handler.end_game(winner)
+        
+        # 如果需要清理文件夹
+        if cleanup:
+            self.cleanup_folders()
 
     def start_daytime(self):
         """开始白天"""
@@ -385,9 +400,37 @@ class WerewolfGameApp:
         self.game_logic_handler.next_round()
 
     def toggle_sound(self):
-        """切换音效开关状态"""
-        self.sound_enabled = self.sound_handler.toggle_sound()
+        """切换游戏音效"""
+        self.sound_enabled = not self.sound_enabled
+        self.sound_handler.set_enabled(self.sound_enabled)
         self.log_system(f"游戏音效已 {'启用' if self.sound_enabled else '禁用'}")
+    
+    def cleanup_folders(self):
+        """清理record和log文件夹"""
+        import shutil
+        
+        # 清理record文件夹
+        record_folder = "record"
+        if os.path.exists(record_folder):
+            try:
+                shutil.rmtree(record_folder)
+                print(f"已删除{record_folder}文件夹")
+            except Exception as e:
+                print(f"删除{record_folder}文件夹失败: {e}")
+        
+        # 清理log文件夹
+        log_folder = "log"
+        if os.path.exists(log_folder):
+            try:
+                shutil.rmtree(log_folder)
+                print(f"已删除{log_folder}文件夹")
+            except Exception as e:
+                print(f"删除{log_folder}文件夹失败: {e}")
+
+    def on_closing(self):
+        """处理窗口关闭事件"""
+        self.end_game(None, cleanup=True)  # 结束游戏并清理文件夹
+        self.root.destroy()  # 销毁窗口
 
 
 if __name__ == '__main__':
