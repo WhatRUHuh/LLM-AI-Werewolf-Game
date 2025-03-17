@@ -1,5 +1,5 @@
 import tkinter as tk
-from record import save_daytime_vote, save_night_vote, append_check_record
+from record import save_daytime_vote, save_night_vote, save_sheriff_vote, append_check_record
 import re
 import random
 from readrecord import (get_last_words_content, get_day_vote_reasoning_player, get_night_vote_reasoning_player)
@@ -73,26 +73,73 @@ class VoteHandler:
 
         # 在 prompt 最前面添加"玩家X开始投票..."或"玩家X开始夜晚投票..."
         if self.app.state.phase == "day":
-            phase_indicator = "【当前阶段：白天投票阶段】\n"
-            start_line = f"玩家 {player_id} 开始投票...\n"
+            if self.app.state.day == 0:  # 第0天是警长竞选阶段
+                phase_indicator = "【当前阶段：警长竞选投票阶段】\n"
+                start_line = f"玩家 {player_id} 开始警长竞选投票...\n"
+            else:
+                phase_indicator = "【当前阶段：白天投票阶段】\n"
+                start_line = f"玩家 {player_id} 开始投票...\n"
+            
+            # 获取警长竞选提示
+            sheriff_vote_notice = ""
+            if self.app.state.day == 0:  # 第0天是警长竞选阶段
+                sheriff_vote_notice = (
+                    "\n【警长竞选投票提示】现在是警长竞选投票阶段，请投票选出你认为最适合担任警长的玩家！"
+                    "得票最多的玩家将成为警长。请考虑每位玩家的竞选发言，并做出你的选择。\n"
+                )
+            
+            # 获取警长竞选发言
+            sheriff_speeches = ""
+            if self.app.state.sheriff_id is not None:
+                sheriff_speeches = f"**【当前警长】**: 玩家{self.app.state.sheriff_id}\n\n"
+            
+            if self.app.state.day == 0:  # 第0天是警长竞选阶段
+                sheriff_speeches += self._read_sheriff_speeches()
+                
+            # 获取玩家自己的警长竞选投票
+            player_sheriff_vote = ""
+            if self.app.state.sheriff_id is not None:
+                player_sheriff_vote = self._read_player_sheriff_vote(player_id)
+            
             if player.identity == "平民":
-                role_tip = ("【提示-平民】作为平民，请结合所有已知信息（历史死亡、游戏状态、前一日投票总结、其他玩家发言及遗言记录），"
-                            "做出你认为最合理的投票选择，并务必说明理由。请注意隐藏身份，确保投票内容控制在300字以内！")
+                if self.app.state.day == 0:
+                    role_tip = ("【提示-平民】作为平民，请结合所有玩家的竞选发言，"
+                               "选出你认为最适合担任警长的玩家，并务必说明理由。请注意隐藏身份，确保投票内容控制在300字以内！")
+                    role_tip += sheriff_vote_notice
+                else:
+                    role_tip = ("【提示-平民】作为平民，请结合所有已知信息（历史死亡、游戏状态、前一日投票总结、其他玩家发言及遗言记录），"
+                                "做出你认为最合理的投票选择，并务必说明理由。请注意隐藏身份，确保投票内容控制在300字以内！")
+                
                 # 读取玩家自己所有的白天投票记录
                 player_day_votes = self._read_player_history_day_votes(player_id)
-                daytime_speeches = self._read_day_speeches()  # 获取白天发言
+                daytime_speeches = self._read_day_speeches()
                 history_speeches = self._read_history_day_speeches()
-                history_votes = self._read_history_day_votes()
+                
+                # 添加警长竞选相关信息
+                sheriff_speeches = ""
+                player_sheriff_vote = ""
+                if self.app.state.day == 0:
+                    sheriff_speeches = self._read_sheriff_speeches()
+                    player_sheriff_vote = self._read_player_sheriff_vote(player_id)
+                
                 prompt = (start_line + common_prefix + phase_indicator + header_footer +
                           role_tip + "\n" +
                           f"**【你的历史白天投票记录】**\n{player_day_votes}\n" +
+                          (f"**【你的警长竞选投票】**\n{player_sheriff_vote}\n" if player_sheriff_vote else "") +
                           f"**【今日其他玩家发言】**:\n{daytime_speeches}\n" +
+                          (f"**【警长竞选发言】**\n{sheriff_speeches}\n" if sheriff_speeches else "") +
                           f"**【历史白天发言】**\n{history_speeches}\n" +
                           f"**【历史遗言记录】**:\n{last_words}\n" +
                           role_tip + footer + common_suffix)
             elif player.identity == "狼人":
-                role_tip = ("【提示-狼人】作为狼人，请结合所有已知信息（历史死亡、游戏状态、前一日投票总结、其他玩家发言及遗言记录），"
-                            "做出你的投票选择。注意隐藏身份、迷惑好人，同时务必说明理由，确保投票内容控制在300字以内！")
+                if self.app.state.day == 0:
+                    role_tip = ("【提示-狼人】作为狼人，请结合所有玩家的竞选发言，选出你认为对狼人最有利的警长人选。"
+                               "注意隐藏身份、迷惑好人，同时务必说明理由，确保投票内容控制在300字以内！")
+                    role_tip += sheriff_vote_notice
+                else:
+                    role_tip = ("【提示-狼人】作为狼人，请结合所有已知信息（历史死亡、游戏状态、前一日投票总结、其他玩家发言及遗言记录），"
+                                "做出你的投票选择。注意隐藏身份、迷惑好人，同时务必说明理由，确保投票内容控制在300字以内！")
+                
                 # 读取玩家自己所有的白天和夜晚投票记录
                 player_day_votes = self._read_player_history_day_votes(player_id)
                 player_night_votes = self._read_player_history_night_votes(player_id)
@@ -103,15 +150,23 @@ class VoteHandler:
                           role_tip + "\n" +
                           f"**【你的历史白天投票记录】**\n{player_day_votes}\n" +
                           f"**【你的历史夜晚投票记录】**\n{player_night_votes}\n" +
+                          (f"**【你的警长竞选投票】**\n{player_sheriff_vote}\n" if player_sheriff_vote else "") +
                           f"**【今日其他玩家发言】**:\n{daytime_speeches}\n" +
+                          (f"**【警长竞选发言】**\n{sheriff_speeches}\n" if sheriff_speeches else "") +
                           f"**【历史白天发言】**\n{history_speeches}\n" +
                           f"**【历史夜晚狼人发言】**\n{history_night_speeches}\n" +
                           f"**【历史遗言记录】**:\n{last_words}\n" +
                           f"**【队友信息】: 狼人队友：{teammates}**\n" +
                           role_tip + footer + common_suffix)
             elif player.identity == "预言家":
-                role_tip = ("【提示-预言家】作为预言家，请结合所有已知信息（历史死亡、游戏状态、前一日投票总结、其他玩家发言、查验信息及遗言记录），"
-                            "做出你认为最合理的投票选择，并务必说明理由。请注意保持隐晦，确保投票内容控制在300字以内！")
+                if self.app.state.day == 0:
+                    role_tip = ("【提示-预言家】作为预言家，请结合所有玩家的竞选发言以及你的查验信息，"
+                               "选出你认为最适合担任警长的玩家，并务必说明理由。请注意保持隐晦，确保投票内容控制在300字以内！")
+                    role_tip += sheriff_vote_notice
+                else:
+                    role_tip = ("【提示-预言家】作为预言家，请结合所有已知信息（历史死亡、游戏状态、前一日投票总结、其他玩家发言、查验信息及遗言记录），"
+                                "做出你认为最合理的投票选择，并务必说明理由。请注意保持隐晦，确保投票内容控制在300字以内！")
+                
                 # 读取玩家自己所有的白天和夜晚投票记录
                 player_day_votes = self._read_player_history_day_votes(player_id)
                 player_night_votes = self._read_player_history_night_votes(player_id)
@@ -124,23 +179,41 @@ class VoteHandler:
                           role_tip + "\n" +
                           f"**【你的历史白天投票记录】**\n{player_day_votes}\n" +
                           f"**【你的历史夜晚投票记录(查验)】**\n{player_night_votes}\n" +
+                          (f"**【你的警长竞选投票】**\n{player_sheriff_vote}\n" if player_sheriff_vote else "") +
                           f"**【今日其他玩家发言】**:\n{day_speeches}\n" +
+                          (f"**【警长竞选发言】**\n{sheriff_speeches}\n" if sheriff_speeches else "") +
                           f"**【历史白天发言】**\n{history_speeches}\n" +
                           check_info + "\n" +
                           f"**【历史遗言记录】**:\n{last_words}\n" +
                           role_tip + footer + common_suffix)
             
             elif player.identity == "猎人":
-                role_tip = ("【提示-猎人】作为猎人，请结合所有已知信息（历史死亡、游戏状态、前一日投票总结、其他玩家发言及遗言记录），"
-                            "做出你认为最合理的投票选择，并务必说明理由。记住你死亡时可以带走一名玩家，确保投票内容控制在300字以内！")
+                if self.app.state.day == 0:
+                    role_tip = ("【提示-猎人】作为猎人，请结合所有玩家的竞选发言，"
+                               "选出你认为最适合担任警长的玩家，并务必说明理由。确保投票内容控制在300字以内！")
+                    role_tip += sheriff_vote_notice
+                else:
+                    role_tip = ("【提示-猎人】作为猎人，请结合所有已知信息（历史死亡、游戏状态、前一日投票总结、其他玩家发言及遗言记录），"
+                                "做出你认为最合理的投票选择，并务必说明理由。记住你死亡时可以带走一名玩家，确保投票内容控制在300字以内！")
+                
                 # 读取玩家自己所有的白天投票记录
                 player_day_votes = self._read_player_history_day_votes(player_id)
                 daytime_speeches = self._read_day_speeches()
                 history_speeches = self._read_history_day_speeches()
+                
+                # 添加警长竞选相关信息
+                sheriff_speeches = ""
+                player_sheriff_vote = ""
+                if self.app.state.day == 0:
+                    sheriff_speeches = self._read_sheriff_speeches()
+                    player_sheriff_vote = self._read_player_sheriff_vote(player_id)
+                
                 prompt = (start_line + common_prefix + phase_indicator + header_footer +
                           role_tip + "\n" +
                           f"**【你的历史白天投票记录】**\n{player_day_votes}\n" +
+                          (f"**【你的警长竞选投票】**\n{player_sheriff_vote}\n" if player_sheriff_vote else "") +
                           f"**【今日其他玩家发言】**:\n{daytime_speeches}\n" +
+                          (f"**【警长竞选发言】**\n{sheriff_speeches}\n" if sheriff_speeches else "") +
                           f"**【历史白天发言】**\n{history_speeches}\n" +
                           f"**【历史遗言记录】**:\n{last_words}\n" +
                           role_tip + footer + common_suffix)
@@ -151,14 +224,27 @@ class VoteHandler:
                 poison_used = self.app.state.witch_poison_used.get(player_id, False)
                 drug_status = f"**【女巫药水状态】**\n救人药：{'已使用' if save_used else '未使用'}\n毒药：{'已使用' if poison_used else '未使用'}\n"
                 
-                role_tip = ("【提示-女巫】作为女巫，请结合所有已知信息（历史死亡、游戏状态、前一日投票总结、其他玩家发言及遗言记录），"
-                            "做出你认为最合理的投票选择，并务必说明理由。请注意隐藏身份，确保投票内容控制在300字以内！")
+                if self.app.state.day == 0:
+                    role_tip = ("【提示-女巫】作为女巫，请结合所有玩家的竞选发言，"
+                               "选出你认为最适合担任警长的玩家，并务必说明理由。确保投票内容控制在300字以内！")
+                    role_tip += sheriff_vote_notice
+                else:
+                    role_tip = ("【提示-女巫】作为女巫，请结合所有已知信息（历史死亡、游戏状态、前一日投票总结、其他玩家发言及遗言记录），"
+                                "做出你认为最合理的投票选择，并务必说明理由。记住你可以在关键时刻使用药水，确保投票内容控制在300字以内！")
                 
                 # 读取玩家自己所有的白天投票记录和夜间使用药水记录
                 player_day_votes = self._read_player_history_day_votes(player_id)
                 player_night_votes = self._read_player_history_night_votes(player_id)
                 daytime_speeches = self._read_day_speeches()
                 history_speeches = self._read_history_day_speeches()
+                
+                # 添加警长竞选相关信息
+                sheriff_speeches = ""
+                player_sheriff_vote = ""
+                if self.app.state.day == 0:
+                    sheriff_speeches = self._read_sheriff_speeches()
+                    player_sheriff_vote = self._read_player_sheriff_vote(player_id)
+                
                 prompt = (start_line + common_prefix + phase_indicator + header_footer +
                           role_tip + "\n" +
                           drug_status +
@@ -696,3 +782,64 @@ class VoteHandler:
                         self.app.log_system(f"[警告] 读取玩家 {player_id} 第{day}天夜晚投票失败: {e}")
         
         return player_history_votes
+
+    def parse_vote_result(self, player_id, vote_text):
+        # 解析投票结果并更新游戏状态
+        vote_target = self._parse_vote_text(vote_text)
+        if vote_target is None:
+            return None  # 解析错误，没有有效投票
+
+        # 记录投票
+        if self.app.state.phase == "day":
+            if self.app.state.day == 0:
+                save_sheriff_vote(player_id, self.app.state.day, vote_text)
+            else:
+                save_daytime_vote(player_id, self.app.state.day, vote_text)
+            self.app.state.day_votes[player_id] = vote_target
+            
+            # 记录玩家的投票历史
+            player = self.app.state.players[player_id]
+            player.vote_history.append(vote_text)
+        else:  # night phase
+            save_night_vote(player_id, self.app.state.day, vote_text)
+            self.app.state.night_votes[player_id] = vote_target
+
+    def _read_sheriff_speeches(self):
+        """读取当前天数的所有警长竞选发言"""
+        sheriff_speeches = ""
+        record_root = "record"
+        day_folder = os.path.join(record_root, f"第{self.app.state.day}天", "警长竞选", "竞选发言")
+        if os.path.exists(day_folder):
+            import re
+            for filename in sorted(os.listdir(day_folder)):
+                if filename.startswith("玩家") and filename.endswith("竞选发言.txt"):
+                    match = re.search(r'玩家(\d+)竞选发言\.txt', filename)
+                    if match:
+                        p_id = int(match.group(1))
+                        if self.app.state.players[p_id].alive and self.app.state.players[p_id].exists:
+                            file_path = os.path.join(day_folder, filename)
+                            try:
+                                with open(file_path, "r", encoding="utf-8") as f:
+                                    content = f.read().strip()
+                                    if content:
+                                        sheriff_speeches += f"**玩家{p_id}**: {content}\n\n"
+                            except Exception as e:
+                                self.app.log_system(f"[警告] 读取玩家 {p_id} 警长竞选发言失败: {e}")
+        return sheriff_speeches
+        
+    def _read_player_sheriff_vote(self, player_id):
+        """读取特定玩家的警长竞选投票"""
+        player_sheriff_vote = ""
+        record_root = "record"
+        day_folder = os.path.join(record_root, f"第{self.app.state.day}天", "警长竞选", "竞选投票")
+        if os.path.exists(day_folder):
+            player_file = os.path.join(day_folder, f"玩家{player_id}竞选投票.txt")
+            if os.path.exists(player_file):
+                try:
+                    with open(player_file, "r", encoding="utf-8") as f:
+                        content = f.read().strip()
+                        if content:
+                            player_sheriff_vote = f"**警长竞选投票**: {content}\n\n"
+                except Exception as e:
+                    self.app.log_system(f"[警告] 读取玩家 {player_id} 警长竞选投票失败: {e}")
+        return player_sheriff_vote

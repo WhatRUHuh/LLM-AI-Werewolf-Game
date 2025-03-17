@@ -21,11 +21,23 @@ def create_day_record_folder(day):
       record/第{day}天/白天玩家投票
       record/第{day}天/夜晚玩家发言
       record/第{day}天/夜晚玩家投票
+      record/第{day}天/警长竞选/竞选发言
+      record/第{day}天/警长竞选/竞选投票
     """
     record_folder = "record"
     day_folder = os.path.join(record_folder, f"第{day}天")
     for subfolder in ("白天玩家发言", "白天玩家投票", "夜晚玩家发言", "夜晚玩家投票"):
         folder = os.path.join(day_folder, subfolder)
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+    
+    # 添加警长竞选相关文件夹
+    sheriff_folder = os.path.join(day_folder, "警长竞选")
+    if not os.path.exists(sheriff_folder):
+        os.makedirs(sheriff_folder)
+    
+    for subfolder in ("竞选发言", "竞选投票"):
+        folder = os.path.join(sheriff_folder, subfolder)
         if not os.path.exists(folder):
             os.makedirs(folder)
 
@@ -113,3 +125,35 @@ def append_check_record(day, seer_player_id, checked_player_id, checked_player_i
     with open(check_file, "a", encoding="utf-8") as f: #  用 "a" (append) 模式打开文件，  追加写入
         f.write(f"第{day}天 预言家 玩家{seer_player_id} 查验了 玩家{checked_player_id}，身份是 {checked_player_identity}\n") #  记录查验信息
         # f.write("-" * 20 + "\n") #  可以加分隔线， 方便查看 (可选)
+
+def save_sheriff_speech(player_id, day, text):
+    """
+    保存玩家警长竞选发言到文本文件中，
+    文件名格式：record/第{day}天/警长竞选/竞选发言/玩家{player_id}竞选发言.txt
+    """
+    record_folder = "record"
+    day_folder = os.path.join(record_folder, f"第{day}天")
+    sheriff_folder = os.path.join(day_folder, "警长竞选")
+    speech_folder = os.path.join(sheriff_folder, "竞选发言")
+    if not os.path.exists(speech_folder):
+        os.makedirs(speech_folder)
+    file_path = os.path.join(speech_folder, f"玩家{player_id}竞选发言.txt")
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(f"玩家{player_id} 第{day}天警长竞选发言：\n")
+        f.write(text)
+
+def save_sheriff_vote(player_id, day, text):
+    """
+    保存玩家警长竞选投票记录到文本文件中，
+    文件名格式：record/第{day}天/警长竞选/竞选投票/玩家{player_id}竞选投票.txt
+    """
+    record_folder = "record"
+    day_folder = os.path.join(record_folder, f"第{day}天")
+    sheriff_folder = os.path.join(day_folder, "警长竞选")
+    vote_folder = os.path.join(sheriff_folder, "竞选投票")
+    if not os.path.exists(vote_folder):
+        os.makedirs(vote_folder)
+    file_path = os.path.join(vote_folder, f"玩家{player_id}竞选投票.txt")
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(f"玩家{player_id} 第{day}天警长竞选投票：\n")
+        f.write(text)

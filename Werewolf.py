@@ -9,6 +9,7 @@ from ttkbootstrap.constants import *
 import random
 import time
 from PIL import Image, ImageTk
+from record import create_record_folder, create_day_record_folder
 
 # 配置代理（确保所有请求走代理）
 os.environ["HTTP_PROXY"] = "http://127.0.0.1:10808"
@@ -18,8 +19,7 @@ os.environ["HTTPS_PROXY"] = "http://127.0.0.1:10808"
 from TTS import play_tts
 from config import init_config
 from log import log_to_file
-from record import (create_record_folder, create_day_record_folder,
-                    save_daytime_speech, save_daytime_vote,
+from record import (save_daytime_speech, save_daytime_vote,
                     save_night_speech, save_night_vote, save_last_words_record)
 # from readrecord import get_history_summary  # 已删除，此函数已移至 GameLogicHandler.py
 from GameState import GameState  # 导入 GameState 类
@@ -200,6 +200,9 @@ class WerewolfGameApp:
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         
         create_record_folder()
+        # 创建第0天的记录文件夹
+        create_day_record_folder(0)
+        
         self.player_count = 8    # 默认玩家人数
         self.wolf_count = 2      # 默认狼人数量
         self.seer_count = 1      # 默认预言家数量
@@ -208,6 +211,7 @@ class WerewolfGameApp:
         self.tts_enabled = init_config()  # 从 config.ini 加载 TTS 启用配置，默认为 True
         self.state = self.create_game_state()  # 使用专门的方法创建 GameState
         self.last_voter_id = None  # 用于记录最后投票的玩家ID，方便主持人改票
+        self.sheriff_labels = {}  # 用于存储每个玩家的警长标签
         
         # 初始化音效处理器 (在UI创建前)
         self.sound_handler = SoundHandler()

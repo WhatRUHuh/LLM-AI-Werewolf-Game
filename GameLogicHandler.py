@@ -35,6 +35,14 @@ class GameLogicHandler:
         self.app.day_label.config(text=f"第 {self.app.state.day} 天")
         self.apply_config()
         self.app.log_system("游戏已重新开始。")
+        
+        # 隐藏所有警长标签
+        if hasattr(self.app, 'sheriff_labels'):
+            for i in self.app.sheriff_labels:
+                self.app.sheriff_labels[i].grid_remove()
+        
+        # 创建第0天的记录文件夹
+        create_day_record_folder(0)
 
     def update_player_identity(self, player_id, new_identity):
         player = self.app.state.players[player_id]
@@ -139,6 +147,31 @@ class GameLogicHandler:
                 valid_votes[voter_id] = vote_target
                 vote_counts[vote_target] = vote_counts.get(vote_target, 0) + 1
         self.app.log_system(f"【白天投票结算】有效投票统计: {vote_counts}")
+        
+        # 处理警长竞选投票（第0天）
+        if self.app.state.day == 0:
+            if not vote_counts:
+                self.app.log_system("警长竞选无人得票：没有选出警长。")
+            else:
+                max_votes = max(vote_counts.values())
+                candidates = [pid for pid, count in vote_counts.items() if count == max_votes]
+                if len(candidates) > 1:
+                    self.app.log_system("警长竞选票数相同：没有选出警长。")
+                else:
+                    sheriff_id = candidates[0]
+                    if sheriff_id in self.app.state.players and self.app.state.players[sheriff_id].alive:
+                        self.app.state.sheriff_id = sheriff_id
+                        self.app.log_system(f"玩家 {sheriff_id} 被选为警长！")
+                        # 在游戏摘要中显示警长选举结果
+                        self.app.summary_text.insert(tk.END, f"玩家 {sheriff_id} 当选为警长！\n")
+                        self.app.summary_text.see(tk.END)
+                        # 更新UI显示警长标签
+                        self.app.ui_handler.update_sheriff_labels()
+            # 警长选举完成后马上清空投票记录，以便接下来的操作
+            self.app.state.day_votes = {}
+            return
+            
+        # 正常白天投票处理（非警长竞选阶段）
         if not vote_counts:
             self.app.log_system("白天平安夜：无人投票淘汰。")
         else:
@@ -244,9 +277,18 @@ class GameLogicHandler:
 
     def next_round(self):
         self.app.log_system("【进入下一回合】")
-        self.next_round_init()
-        self.app.print_day_status()
-        self.update_buttons_for_phase("day")
+        
+        # 如果当前是第0天（警长选举阶段），进入第1天正式开始游戏
+        if self.app.state.day == 0:
+            self.app.log_system("【警长选举阶段结束，进入第1天】")
+            self.next_round_init()
+            self.app.print_day_status()
+            self.update_buttons_for_phase("day")
+        else:
+            # 正常进入下一天
+            self.next_round_init()
+            self.app.print_day_status()
+            self.update_buttons_for_phase("day")
 
     def get_history_summary(self):
         state = self.app.state

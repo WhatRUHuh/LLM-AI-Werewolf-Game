@@ -1,4 +1,4 @@
-from record import save_daytime_speech, save_night_speech
+from record import save_daytime_speech, save_night_speech, save_sheriff_speech
 from readrecord import (get_last_words_content, get_day_vote_reasoning_player, get_night_vote_reasoning_player)
 import os
 import re
@@ -9,6 +9,7 @@ class SpeechHandler:
     def __init__(self, app):
         self.app = app
         self.model_handler = app.model_handler  # 获取 ModelHandler 实例
+        self.sheriff_speak_count = {}  # 跟踪每个警长的发言次数
 
     def player_speak(self, player_id):
         player = self.app.state.players[player_id]
@@ -34,7 +35,10 @@ class SpeechHandler:
         elif self.app.state.phase == "day":
             # 白天发言准备提示
             identity_display = player.identity if player.identity != "空" else "玩家"
-            self.app.log_system(f"{identity_display} {player_id} 准备进行白天发言...")
+            if self.app.state.day == 0:
+                self.app.log_system(f"{identity_display} {player_id} 准备进行警长竞选发言...")
+            else:
+                self.app.log_system(f"{identity_display} {player_id} 准备进行白天发言...")
         else:
             # 夜晚发言准备提示
             self.app.log_system(f"狼人 {player_id} 准备进行夜晚发言...")
@@ -86,6 +90,24 @@ class SpeechHandler:
         # 公共限制提示：控制发言在300字以内
         common_prefix = "【注意】请务必将你的发言控制在300字以内，以免耽误其他玩家的发言时间。\n"
         common_suffix = "\n【提醒】请保持发言简洁明了，限于300字以内。"
+
+        # 获取当前警长的提示（适用于所有角色）
+        def get_sheriff_guidance(player_id):
+            sheriff_guidance = ""
+            if self.app.state.sheriff_id == player_id:
+                # 初始化或增加警长发言计数
+                if player_id not in self.sheriff_speak_count:
+                    self.sheriff_speak_count[player_id] = 0
+                self.sheriff_speak_count[player_id] += 1
+                
+                # 根据发言次数添加不同提示
+                if self.sheriff_speak_count[player_id] == 1:
+                    sheriff_guidance = "\n【警长提示】作为警长，你现在需要决定发言顺序！\n"
+                elif self.sheriff_speak_count[player_id] == 2:
+                    sheriff_guidance = "\n【警长提示】现在是正常的发言阶段！\n"
+                elif self.sheriff_speak_count[player_id] >= 3:
+                    sheriff_guidance = "\n【警长提示】请对今天所有人的发言进行总结！\n"
+            return sheriff_guidance
 
         # 遗言阶段（死亡玩家）
         if is_last_words:
@@ -236,9 +258,14 @@ class SpeechHandler:
         # 如果不是遗言阶段，则按照正常的白天/夜晚阶段处理
         elif self.app.state.phase == "day":
             # 白天发言阶段（活着玩家）
-            phase_indicator = "【当前阶段：白天发言阶段】\n"
-            # 在 prompt 最前面添加"玩家X开始发言..."
-            start_line = f"玩家 {player_id} 开始发言...\n"
+            if self.app.state.day == 0:  # 第0天是警长竞选阶段
+                phase_indicator = "【当前阶段：警长竞选发言阶段】\n"
+                # 在 prompt 最前面添加"玩家X开始警长竞选发言..."
+                start_line = f"玩家 {player_id} 开始警长竞选发言...\n"
+            else:
+                phase_indicator = "【当前阶段：白天发言阶段】\n"
+                # 在 prompt 最前面添加"玩家X开始发言..."
+                start_line = f"玩家 {player_id} 开始发言...\n"
 
             # 如果是第一天，则额外添加一段提示
             day1_notice = ""
@@ -247,6 +274,28 @@ class SpeechHandler:
                     "\n【注意-第一天白天】现在这是第一天游戏刚开始，现在是游戏的第一个阶段，"
                     "现在没有人被投票放逐，没有人被狼人杀死，没人被预言家查明身份。\n"
                 )
+
+            # 警长竞选提示
+            sheriff_notice = ""
+            if self.app.state.day == 0:  # 第0天是警长竞选阶段
+                sheriff_notice = (
+                    "\n【警长竞选提示】现在是警长竞选阶段，请发表你的竞选演讲，表明你是否想要成为警长！"
+                    "你可以阐述你的理由、策略以及为何你适合担任警长。"
+                    "即使你不想竞选，也请说明你的考虑。这个发言所有人都会看到！\n"
+                )
+            
+            # 获取警长竞选发言
+            sheriff_speeches = ""
+            if self.app.state.sheriff_id is not None:
+                sheriff_speeches = f"**【当前警长】**: 玩家{self.app.state.sheriff_id}\n\n"
+            
+            if self.app.state.day == 0:  # 第0天是警长竞选阶段
+                sheriff_speeches += self._read_sheriff_speeches()
+                
+            # 获取玩家自己的警长竞选投票
+            player_sheriff_vote = ""
+            if self.app.state.sheriff_id is not None:
+                player_sheriff_vote = self._read_player_sheriff_vote(player_id)
 
             if player.identity == "平民":
                 role_tip = (
@@ -260,6 +309,15 @@ class SpeechHandler:
                 )
                 # 在第一天时插入 day1_notice
                 role_tip += day1_notice
+                
+                # 如果是警长竞选阶段，添加警长竞选提示
+                role_tip += sheriff_notice
+                
+                # 获取警长特定提示
+                sheriff_guidance = get_sheriff_guidance(player_id)
+                
+                # 在角色提示词前添加警长特定提示
+                role_tip = sheriff_guidance + role_tip
 
                 # 读取玩家自己所有的白天投票记录
                 player_day_votes = self._read_player_history_day_votes(player_id)
@@ -269,7 +327,9 @@ class SpeechHandler:
                 prompt = (start_line + common_prefix + phase_indicator + header_footer +
                           role_tip + "\n" +
                           f"**【你的历史白天投票记录】**\n{player_day_votes}\n" +
-                          f"**【今日其他玩家发言】**:\n{daytime_speeches}\n" +
+                          (f"**【你的警长竞选投票】**\n{player_sheriff_vote}\n" if player_sheriff_vote else "") +
+                          f"**【今日其他玩家发言】**\n{daytime_speeches}\n" +
+                          (f"**【警长竞选发言】**\n{sheriff_speeches}\n" if sheriff_speeches else "") +
                           f"**【历史白天发言】**\n{history_speeches}\n" +
                           f"**【历史遗言记录】**\n{last_words}\n" +
                           role_tip + footer + common_suffix)
@@ -287,6 +347,15 @@ class SpeechHandler:
                 )
                 # 在第一天时插入 day1_notice
                 role_tip += day1_notice
+                
+                # 如果是警长竞选阶段，添加警长竞选提示
+                role_tip += sheriff_notice
+                
+                # 获取警长特定提示
+                sheriff_guidance = get_sheriff_guidance(player_id)
+                
+                # 在角色提示词前添加警长特定提示
+                role_tip = sheriff_guidance + role_tip
 
                 # 读取玩家自己所有的白天和夜晚投票记录
                 player_day_votes = self._read_player_history_day_votes(player_id)
@@ -298,7 +367,7 @@ class SpeechHandler:
                           role_tip + "\n" +
                           f"**【你的历史白天投票记录】**\n{player_day_votes}\n" +
                           f"**【你的历史夜晚投票记录】**\n{player_night_votes}\n" +
-                          f"**【今日其他玩家发言】**:\n{daytime_speeches}\n" +
+                          f"**【今日其他玩家发言】**\n{daytime_speeches}\n" +
                           f"**【历史白天发言】**\n{history_speeches}\n" +
                           f"**【历史遗言记录】**\n{last_words}\n" +
                           role_tip + footer + common_suffix)
@@ -316,6 +385,15 @@ class SpeechHandler:
                 )
                 # 在第一天时插入 day1_notice
                 role_tip += day1_notice
+                
+                # 如果是警长竞选阶段，添加警长竞选提示
+                role_tip += sheriff_notice
+                
+                # 获取警长特定提示
+                sheriff_guidance = get_sheriff_guidance(player_id)
+                
+                # 在角色提示词前添加警长特定提示
+                role_tip = sheriff_guidance + role_tip
 
                 # 读取玩家自己所有的白天和夜晚投票记录
                 player_day_votes = self._read_player_history_day_votes(player_id)
@@ -329,7 +407,7 @@ class SpeechHandler:
                           role_tip + "\n" +
                           f"**【你的历史白天投票记录】**\n{player_day_votes}\n" +
                           f"**【你的历史夜晚投票记录(查验)】**\n{player_night_votes}\n" +
-                          f"**【今日其他玩家发言】**:\n{daytime_speeches}\n" +
+                          f"**【今日其他玩家发言】**\n{daytime_speeches}\n" +
                           f"**【历史白天发言】**\n{history_speeches}\n" +
                           check_info +
                           f"**【历史遗言记录】**\n{last_words}\n" +
@@ -347,6 +425,15 @@ class SpeechHandler:
                 )
                 # 在第一天时插入 day1_notice
                 role_tip += day1_notice
+                
+                # 如果是警长竞选阶段，添加警长竞选提示
+                role_tip += sheriff_notice
+                
+                # 获取警长特定提示
+                sheriff_guidance = get_sheriff_guidance(player_id)
+                
+                # 在角色提示词前添加警长特定提示
+                role_tip = sheriff_guidance + role_tip
 
                 # 读取玩家自己所有的白天投票记录
                 player_day_votes = self._read_player_history_day_votes(player_id)
@@ -356,7 +443,7 @@ class SpeechHandler:
                 prompt = (start_line + common_prefix + phase_indicator + header_footer +
                           role_tip + "\n" +
                           f"**【你的历史白天投票记录】**\n{player_day_votes}\n" +
-                          f"**【今日其他玩家发言】**:\n{daytime_speeches}\n" +
+                          f"**【今日其他玩家发言】**\n{daytime_speeches}\n" +
                           f"**【历史白天发言】**\n{history_speeches}\n" +
                           f"**【历史遗言记录】**\n{last_words}\n" +
                           role_tip + footer + common_suffix)
@@ -375,6 +462,15 @@ class SpeechHandler:
                 )
                 # 在第一天时插入 day1_notice
                 role_tip += day1_notice
+                
+                # 如果是警长竞选阶段，添加警长竞选提示
+                role_tip += sheriff_notice
+                
+                # 获取警长特定提示
+                sheriff_guidance = get_sheriff_guidance(player_id)
+                
+                # 在角色提示词前添加警长特定提示
+                role_tip = sheriff_guidance + role_tip
 
                 # 读取女巫的药水使用状态
                 save_used = self.app.state.witch_save_used.get(player_id, False)
@@ -393,7 +489,7 @@ class SpeechHandler:
                           drug_status +
                           f"**【你的历史白天投票记录】**\n{player_day_votes}\n" +
                           f"**【你的历史夜晚药水使用记录】**\n{player_night_votes}\n" +
-                          f"**【今日其他玩家发言】**:\n{daytime_speeches}\n" +
+                          f"**【今日其他玩家发言】**\n{daytime_speeches}\n" +
                           f"**【历史白天发言】**\n{history_speeches}\n" +
                           f"**【历史遗言记录】**\n{last_words}\n" +
                           role_tip + footer + common_suffix)
@@ -442,7 +538,10 @@ class SpeechHandler:
             text_parsed = final_answer_text.replace("\\n", "\n")
             player.speech_history.append(text_parsed)
             if self.app.state.phase == "day":
-                save_daytime_speech(player_id, self.app.state.day, text_parsed)
+                if self.app.state.day == 0:
+                    save_sheriff_speech(player_id, self.app.state.day, text_parsed)
+                else:
+                    save_daytime_speech(player_id, self.app.state.day, text_parsed)
             else:
                 save_night_speech(player_id, self.app.state.day, text_parsed)
 
@@ -711,3 +810,43 @@ class SpeechHandler:
                         self.app.log_system(f"[警告] 读取玩家 {player_id} 第{day}天夜晚投票失败: {e}")
         
         return player_history_votes
+
+    def _read_sheriff_speeches(self):
+        """读取当前天数的所有警长竞选发言"""
+        sheriff_speeches = ""
+        record_root = "record"
+        day_folder = os.path.join(record_root, f"第{self.app.state.day}天", "警长竞选", "竞选发言")
+        if os.path.exists(day_folder):
+            import re
+            for filename in sorted(os.listdir(day_folder)):
+                if filename.startswith("玩家") and filename.endswith("竞选发言.txt"):
+                    match = re.search(r'玩家(\d+)竞选发言\.txt', filename)
+                    if match:
+                        p_id = int(match.group(1))
+                        if self.app.state.players[p_id].alive and self.app.state.players[p_id].exists:
+                            file_path = os.path.join(day_folder, filename)
+                            try:
+                                with open(file_path, "r", encoding="utf-8") as f:
+                                    content = f.read().strip()
+                                    if content:
+                                        sheriff_speeches += f"**玩家{p_id}**: {content}\n\n"
+                            except Exception as e:
+                                self.app.log_system(f"[警告] 读取玩家 {p_id} 警长竞选发言失败: {e}")
+        return sheriff_speeches
+        
+    def _read_player_sheriff_vote(self, player_id):
+        """读取特定玩家的警长竞选投票"""
+        player_sheriff_vote = ""
+        record_root = "record"
+        day_folder = os.path.join(record_root, f"第{self.app.state.day}天", "警长竞选", "竞选投票")
+        if os.path.exists(day_folder):
+            player_file = os.path.join(day_folder, f"玩家{player_id}竞选投票.txt")
+            if os.path.exists(player_file):
+                try:
+                    with open(player_file, "r", encoding="utf-8") as f:
+                        content = f.read().strip()
+                        if content:
+                            player_sheriff_vote = f"**警长竞选投票**: {content}\n\n"
+                except Exception as e:
+                    self.app.log_system(f"[警告] 读取玩家 {player_id} 警长竞选投票失败: {e}")
+        return player_sheriff_vote

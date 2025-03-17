@@ -11,7 +11,7 @@ class GameState:
         self.witch_count = witch_count
         self.initial_witch_count = witch_count  # 记录初始女巫数量
         self.players = {}
-        self.day = 1
+        self.day = 0  # 从第0天开始，第0天是警长选举阶段
         self.dead_today = []
         self.dead_yesterday = []
         self.day_votes = {}
@@ -25,6 +25,9 @@ class GameState:
         self.witch_save_used = {}  # 记录每个女巫是否已使用救人药，格式{player_id: True/False}
         self.witch_poison_used = {}  # 记录每个女巫是否已使用毒药，格式{player_id: True/False}
         self.witch_save_target = None  # 记录被女巫救活的目标
+        
+        # 警长相关状态
+        self.sheriff_id = None  # 当前警长玩家ID
         
         self.initialize_players()
 

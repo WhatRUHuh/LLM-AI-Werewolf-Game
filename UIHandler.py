@@ -19,6 +19,9 @@ class UIHandler:
         # 存储头像引用，防止被垃圾回收
         self.player_avatars = {}
         
+        # 为每个玩家存储框架引用
+        self.app.player_frames = {}
+        
         # 头像映射关系
         self.avatar_mapping = {
             "平民": "source/平民.jpg",
@@ -180,6 +183,9 @@ class UIHandler:
         p_frame = ttk.Frame(self.players_frame)
         p_frame.pack(fill=tk.X, pady=5)  # 减小玩家框架之间的间距
         
+        # 存储框架引用到app中
+        self.app.player_frames[i] = p_frame
+        
         # 布局结构
         # 左侧头像 - 调整为更大的正方形
         avatar_size = 100  # 头像正方形大小
@@ -203,6 +209,13 @@ class UIHandler:
         player_label = tk.Label(p_frame, text=f"玩家 {i}", fg=self.app.player_colors.get(i, "black"),
                  font=("SourceHanSansCN-Bold.otf", 16, "bold"))
         player_label.grid(row=0, column=1, padx=5, pady=(5, 2), sticky="w")  # 调整上下内边距
+        
+        # 警长标签 - 默认隐藏
+        sheriff_label = tk.Label(p_frame, text="警长", fg="gold",
+                 font=("SourceHanSansCN-Bold.otf", 16, "bold"))
+        sheriff_label.grid(row=0, column=3, padx=5, pady=(5, 2), sticky="w")  # 放在与玩家标签同一行
+        sheriff_label.grid_remove()  # 默认隐藏
+        self.app.sheriff_labels[i] = sheriff_label
         
         # 按钮框架
         button_frame = ttk.Frame(p_frame)
@@ -382,3 +395,33 @@ class UIHandler:
                 avatar_label.configure(image=photo)
                 avatar_label.image = photo  # 保留引用，防止被垃圾回收
                 self.player_avatars[player_id]["photo"] = photo
+
+    def update_player_status(self):
+        """更新所有玩家的状态显示"""
+        for i in range(1, self.app.state.player_count + 1):
+            player = self.app.state.players[i]
+            # 如果玩家不存在，将其置灰
+            if not player.exists:
+                self.app.player_frames[i].config(style="player.TFrame")
+            # 如果玩家死亡，将其置灰
+            elif not player.alive:
+                self.app.player_frames[i].config(style="player.TFrame")
+            # 如果玩家存活，恢复正常显示
+            else:
+                self.app.player_frames[i].config(style="TFrame")
+        
+        # 更新警长标签显示
+        self.update_sheriff_labels()
+    
+    def update_sheriff_labels(self):
+        """更新警长标签的显示状态"""
+        sheriff_id = self.app.state.sheriff_id
+        
+        # 隐藏所有警长标签
+        for i in self.app.sheriff_labels:
+            self.app.sheriff_labels[i].grid_remove()
+        
+        # 如果有警长，显示对应玩家的警长标签
+        if sheriff_id is not None and sheriff_id in self.app.sheriff_labels:
+            self.app.sheriff_labels[sheriff_id].grid()
+            self.app.log_system(f"显示玩家 {sheriff_id} 的警长标签")
