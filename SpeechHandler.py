@@ -547,31 +547,107 @@ class SpeechHandler:
 
             # 检查是否是猎人的遗言，如果是，处理带人逻辑
             if player.identity == "猎人" and not player.alive:
-                # 用正则表达式匹配方括号中的数字，表示猎人要带走的玩家
+                # 用正则表达式匹配各种格式中的数字，表示猎人要带走的玩家
+                # 1. 英文方括号[玩家X]和[X]
+                player_brackets = re.findall(r'\[玩家(\d+)\]', text_parsed)
                 brackets_number = re.findall(r'\[(\d+)\]', text_parsed)
                 
-                # 也支持[随机]和[弃票]格式
-                random_choice = re.findall(r'\[随机\]', text_parsed)
-                abstain_choice = re.findall(r'\[弃票\]', text_parsed)
+                # 2. 英文方括号的[弃票]或[随机]
+                eng_random_choice = re.search(r'\[随机\]', text_parsed)
+                eng_abstain_choice = re.search(r'\[弃票\]', text_parsed)
+                
+                # 3. 中文方括号【玩家X】和【X】
+                chinese_player_brackets = re.findall(r'【玩家(\d+)】', text_parsed)
+                chinese_brackets_number = re.findall(r'【(\d+)】', text_parsed)
+                
+                # 4. 中文方括号的【弃票】或【随机】
+                cn_random_choice = re.search(r'【随机】', text_parsed)
+                cn_abstain_choice = re.search(r'【弃票】', text_parsed)
+                
+                # 5. 直接说弃票或随机（无括号）
+                direct_random_choice = re.search(r'(?<!\[|【)随机(?!\]|】)', text_parsed)
+                direct_abstain_choice = re.search(r'(?<!\[|【)弃票(?!\]|】)', text_parsed)
+                
+                # 6. 直接提及检查
+                direct_player_mention = re.findall(r'玩家\s*(\d+)', text_parsed)
+                direct_number = re.findall(r'(?<![【\[（\(])\b(\d+)\b(?![\]】）\)])', text_parsed)  # 查找不在括号内的数字
                 
                 target_player_id = None
-                if brackets_number:
-                    # 获取最后一个匹配的数字，即最终选择的玩家
+                
+                # 按照优先级依次处理
+                if player_brackets:
+                    # 1. 优先使用"[玩家X]"格式
+                    target_id_str = player_brackets[-1]
+                    try:
+                        target_player_id = int(target_id_str)
+                    except ValueError:
+                        self.app.log_system(f"[警告] 无法解析猎人 {player_id} 的带人目标编号 (英文方括号玩家数字)，带人作废。")
+                elif brackets_number:
+                    # 1. 使用"[X]"格式
                     target_id_str = brackets_number[-1]
                     try:
                         target_player_id = int(target_id_str)
                     except ValueError:
-                        self.app.log_system(f"[警告] 无法解析猎人 {player_id} 的带人目标编号，带人作废。")
-                elif random_choice:
+                        self.app.log_system(f"[警告] 无法解析猎人 {player_id} 的带人目标编号 (英文方括号数字)，带人作废。")
+                # 2. 英文方括号的随机/弃票选择
+                elif eng_random_choice:
                     # 从存活的非猎人玩家中随机选择一名
                     alive_players = [p_id for p_id, p in self.app.state.players.items() 
                                     if p.alive and p.exists and p_id != player_id]
                     if alive_players:
                         import random
                         target_player_id = random.choice(alive_players)
-                        self.app.log_system(f"猎人 {player_id} 选择随机带人，系统选择了玩家 {target_player_id}")
-                elif abstain_choice:
-                    self.app.log_system(f"猎人 {player_id} 选择放弃带人")
+                        self.app.log_system(f"猎人 {player_id} 选择[随机]带人，系统选择了玩家 {target_player_id}")
+                elif eng_abstain_choice:
+                    self.app.log_system(f"猎人 {player_id} 选择[弃票]放弃带人")
+                # 3. 中文方括号玩家格式
+                elif chinese_player_brackets:
+                    target_id_str = chinese_player_brackets[-1]
+                    try:
+                        target_player_id = int(target_id_str)
+                    except ValueError:
+                        self.app.log_system(f"[警告] 无法解析猎人 {player_id} 的带人目标编号 (中文方括号玩家数字)，带人作废。")
+                elif chinese_brackets_number:
+                    target_id_str = chinese_brackets_number[-1]
+                    try:
+                        target_player_id = int(target_id_str)
+                    except ValueError:
+                        self.app.log_system(f"[警告] 无法解析猎人 {player_id} 的带人目标编号 (中文方括号数字)，带人作废。")
+                # 4. 中文方括号的随机/弃票选择
+                elif cn_random_choice:
+                    alive_players = [p_id for p_id, p in self.app.state.players.items() 
+                                    if p.alive and p.exists and p_id != player_id]
+                    if alive_players:
+                        import random
+                        target_player_id = random.choice(alive_players)
+                        self.app.log_system(f"猎人 {player_id} 选择【随机】带人，系统选择了玩家 {target_player_id}")
+                elif cn_abstain_choice:
+                    self.app.log_system(f"猎人 {player_id} 选择【弃票】放弃带人")
+                # 5. 直接表达的随机/弃票选择（无括号）
+                elif direct_random_choice:
+                    alive_players = [p_id for p_id, p in self.app.state.players.items() 
+                                    if p.alive and p.exists and p_id != player_id]
+                    if alive_players:
+                        import random
+                        target_player_id = random.choice(alive_players)
+                        self.app.log_system(f"猎人 {player_id} 直接选择随机带人，系统选择了玩家 {target_player_id}")
+                elif direct_abstain_choice:
+                    self.app.log_system(f"猎人 {player_id} 直接选择弃票放弃带人")
+                # 6. 最后尝试直接从文本中找出玩家提及或数字
+                elif direct_player_mention:
+                    target_id_str = direct_player_mention[-1]
+                    try:
+                        target_player_id = int(target_id_str)
+                        self.app.log_system(f"猎人 {player_id} 选择了不带括号的目标：玩家 {target_player_id}")
+                    except ValueError:
+                        self.app.log_system(f"[警告] 无法解析猎人 {player_id} 的直接玩家提及，带人作废。")
+                elif direct_number:
+                    target_id_str = direct_number[-1]
+                    try:
+                        target_player_id = int(target_id_str)
+                        self.app.log_system(f"猎人 {player_id} 选择了不带括号的目标：{target_player_id}")
+                    except ValueError:
+                        self.app.log_system(f"[警告] 无法解析猎人 {player_id} 的直接数字提及，带人作废。")
                 
                 # 如果有有效的带人目标，执行带人逻辑
                 if target_player_id is not None:

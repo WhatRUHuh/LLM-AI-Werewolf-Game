@@ -394,55 +394,153 @@ class VoteHandler:
             text_parsed = final_answer_text.replace("\\n", "\n")
             vote_result = None
 
-            # 添加对"[玩家X]"格式的支持
+            # 添加对各种格式的投票支持，按照优先级排序
+            # 1. 英文方括号[玩家X]和[X]
             player_brackets = re.findall(r'\[玩家(\d+)\]', text_parsed)
             brackets_number = re.findall(r'\[(\d+)\]', text_parsed)
             
+            # 2. 英文方括号的[弃票]或[随机]
+            eng_random_choice = re.search(r'\[随机\]', text_parsed)
+            eng_abstain_choice = re.search(r'\[弃票\]', text_parsed)
+            eng_skip_choice = re.search(r'\[跳过\]|\[不使用\]|\[不用\]', text_parsed)
+            
+            # 3. 中文方括号【玩家X】和【X】
+            chinese_player_brackets = re.findall(r'【玩家(\d+)】', text_parsed)
+            chinese_brackets_number = re.findall(r'【(\d+)】', text_parsed)
+            
+            # 4. 中文方括号的【弃票】或【随机】
+            cn_random_choice = re.search(r'【随机】', text_parsed)
+            cn_abstain_choice = re.search(r'【弃票】', text_parsed)
+            cn_skip_choice = re.search(r'【跳过】|【不使用】|【不用】', text_parsed)
+            
+            # 5. 直接说弃票或随机（无括号）
+            direct_random_choice = re.search(r'(?<!\[|【)随机(?!\]|】)', text_parsed)
+            direct_abstain_choice = re.search(r'(?<!\[|【)弃票(?!\]|】)', text_parsed)
+            direct_skip_choice = re.search(r'(?<!\[|【)跳过(?!\]|】)|(?<!\[|【)不使用(?!\]|】)|(?<!\[|【)不用(?!\]|】)', text_parsed)
+            
+            # 6. 直接提及检查
+            direct_player_mention = re.findall(r'玩家\s*(\d+)', text_parsed)
+            direct_number = re.findall(r'(?<![【\[（\(])\b(\d+)\b(?![\]】）\)])', text_parsed)  # 查找不在括号内的数字
+            
+            # 按照优先级依次处理
             if player_brackets:
-                # 优先使用"[玩家X]"格式
+                # 1. 优先使用"[玩家X]"格式
                 vote_result = player_brackets[-1]
                 try:
                     vote_target = int(vote_result)
                 except ValueError:
-                    self.app.log_system(f"[警告] 无法解析 玩家 {player_id} 的投票目标编号 (方括号玩家数字)，投票作废。")
+                    self.app.log_system(f"[警告] 无法解析 玩家 {player_id} 的投票目标编号 (英文方括号玩家数字)，投票作废。")
                     return
             elif brackets_number:
+                # 1. 使用"[X]"格式
                 vote_result = brackets_number[-1]
                 try:
                     vote_target = int(vote_result)
                 except ValueError:
-                    self.app.log_system(f"[警告] 无法解析 玩家 {player_id} 的投票目标编号 (方括号数字)，投票作废。")
+                    self.app.log_system(f"[警告] 无法解析 玩家 {player_id} 的投票目标编号 (英文方括号数字)，投票作废。")
                     return
-            # 这里是随机/弃票逻辑
-            else:
-                random_choice = re.search(r'[\[\(]?随机[\]\)]?', text_parsed, re.IGNORECASE)
-                abstain_choice = re.search(r'[\[\(]?弃票[\]\)]?', text_parsed, re.IGNORECASE)
-                skip_choice = re.search(r'[\[\(]?跳过[\]\)]?|[\[\(]?不使用[\]\)]?|[\[\(]?不用[\]\)]?', text_parsed, re.IGNORECASE)
-                
-                if random_choice:
-                    # 随机选择一个存活的玩家
-                    alive_players = [i for i, p in self.app.state.players.items() 
-                                     if p.exists and p.alive and i != player_id]
-                    if not alive_players:
-                        self.app.log_system(f"[警告] 玩家 {player_id} 选择随机投票，但没有有效的目标！")
-                        return
-                        
-                    vote_target = random.choice(alive_players)
-                    vote_result = str(vote_target)
+            # 2. 英文方括号的随机/弃票选择
+            elif eng_random_choice:
+                # 随机选择一个存活的玩家
+                alive_players = [i for i, p in self.app.state.players.items() 
+                                 if p.exists and p.alive and i != player_id]
+                if not alive_players:
+                    self.app.log_system(f"[警告] 玩家 {player_id} 选择随机投票，但没有有效的目标！")
+                    return
                     
-                elif abstain_choice or skip_choice: # 增加"跳过"等选项
-                    vote_target = "弃票"
-                    vote_result = "弃票"
+                vote_target = random.choice(alive_players)
+                vote_result = str(vote_target)
+                self.app.log_system(f"玩家 {player_id} 选择了[随机]投票，系统选择了玩家 {vote_target}")
+            elif eng_abstain_choice or eng_skip_choice:
+                vote_target = "弃票"
+                vote_result = "弃票"
+                self.app.log_system(f"玩家 {player_id} 选择了[弃票]")
 
-                    # 女巫特殊处理：允许弃票表示不使用药水
-                    if player.identity == "女巫" and self.app.state.phase == "night":
-                        self.app.log_system(f"女巫 {player_id} 选择本回合不使用药水")
-                        self.app.state.night_votes[player_id] = "不使用药水"
-                        save_night_vote(player_id, self.app.state.day, text_parsed)
-                        return
-                else:
-                    self.app.log_system(f"[警告] 无法解析 玩家 {player_id} 的投票目标，投票作废。")
+                # 女巫特殊处理：允许弃票表示不使用药水
+                if player.identity == "女巫" and self.app.state.phase == "night":
+                    self.app.log_system(f"女巫 {player_id} 选择本回合不使用药水")
+                    self.app.state.night_votes[player_id] = "不使用药水"
+                    save_night_vote(player_id, self.app.state.day, text_parsed)
                     return
+            # 3. 中文方括号玩家格式
+            elif chinese_player_brackets:
+                vote_result = chinese_player_brackets[-1]
+                try:
+                    vote_target = int(vote_result)
+                except ValueError:
+                    self.app.log_system(f"[警告] 无法解析 玩家 {player_id} 的投票目标编号 (中文方括号玩家数字)，投票作废。")
+                    return
+            elif chinese_brackets_number:
+                vote_result = chinese_brackets_number[-1]
+                try:
+                    vote_target = int(vote_result)
+                except ValueError:
+                    self.app.log_system(f"[警告] 无法解析 玩家 {player_id} 的投票目标编号 (中文方括号数字)，投票作废。")
+                    return
+            # 4. 中文方括号的随机/弃票选择
+            elif cn_random_choice:
+                alive_players = [i for i, p in self.app.state.players.items() 
+                                if p.exists and p.alive and i != player_id]
+                if not alive_players:
+                    self.app.log_system(f"[警告] 玩家 {player_id} 选择随机投票，但没有有效的目标！")
+                    return
+                
+                vote_target = random.choice(alive_players)
+                vote_result = str(vote_target)
+                self.app.log_system(f"玩家 {player_id} 选择了【随机】投票，系统选择了玩家 {vote_target}")
+            elif cn_abstain_choice or cn_skip_choice:
+                vote_target = "弃票"
+                vote_result = "弃票"
+                self.app.log_system(f"玩家 {player_id} 选择了【弃票】")
+
+                # 女巫特殊处理
+                if player.identity == "女巫" and self.app.state.phase == "night":
+                    self.app.log_system(f"女巫 {player_id} 选择本回合不使用药水")
+                    self.app.state.night_votes[player_id] = "不使用药水"
+                    save_night_vote(player_id, self.app.state.day, text_parsed)
+                    return
+            # 5. 直接表达的随机/弃票选择（无括号）
+            elif direct_random_choice:
+                alive_players = [i for i, p in self.app.state.players.items() 
+                                if p.exists and p.alive and i != player_id]
+                if not alive_players:
+                    self.app.log_system(f"[警告] 玩家 {player_id} 选择随机投票，但没有有效的目标！")
+                    return
+                
+                vote_target = random.choice(alive_players)
+                vote_result = str(vote_target)
+                self.app.log_system(f"玩家 {player_id} 直接选择了随机投票，系统选择了玩家 {vote_target}")
+            elif direct_abstain_choice or direct_skip_choice:
+                vote_target = "弃票"
+                vote_result = "弃票"
+                self.app.log_system(f"玩家 {player_id} 直接选择了弃票")
+
+                # 女巫特殊处理
+                if player.identity == "女巫" and self.app.state.phase == "night":
+                    self.app.log_system(f"女巫 {player_id} 选择本回合不使用药水")
+                    self.app.state.night_votes[player_id] = "不使用药水"
+                    save_night_vote(player_id, self.app.state.day, text_parsed)
+                    return
+            # 6. 最后尝试直接从文本中找出玩家提及或数字
+            elif direct_player_mention:
+                vote_result = direct_player_mention[-1]
+                try:
+                    vote_target = int(vote_result)
+                    self.app.log_system(f"玩家 {player_id} 选择了不带括号的目标：玩家 {vote_target}")
+                except ValueError:
+                    self.app.log_system(f"[警告] 无法解析 玩家 {player_id} 的直接玩家提及，投票作废。")
+                    return
+            elif direct_number:
+                vote_result = direct_number[-1]
+                try:
+                    vote_target = int(vote_result)
+                    self.app.log_system(f"玩家 {player_id} 选择了不带括号的目标：{vote_target}")
+                except ValueError:
+                    self.app.log_system(f"[警告] 无法解析 玩家 {player_id} 的直接数字提及，投票作废。")
+                    return
+            else:
+                self.app.log_system(f"[警告] 无法解析 玩家 {player_id} 的投票目标，投票作废。")
+                return
             
             # 统一处理投票逻辑
             if self.app.state.phase == "day":
