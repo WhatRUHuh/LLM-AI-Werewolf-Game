@@ -28,6 +28,17 @@ class SpeechHandler:
             self.app.log_system(f"玩家 {player_id} 不是狼人，无法在夜晚发言。")
             return
 
+        # 准备阶段提示信息
+        if is_last_words:
+            self.app.log_system(f"玩家 {player_id} 准备进行遗言发言...")
+        elif self.app.state.phase == "day":
+            # 白天发言准备提示
+            identity_display = player.identity if player.identity != "空" else "玩家"
+            self.app.log_system(f"{identity_display} {player_id} 准备进行白天发言...")
+        else:
+            # 夜晚发言准备提示
+            self.app.log_system(f"狼人 {player_id} 准备进行夜晚发言...")
+
         # 构造历史死亡信息
         history_info_formatted = "**【历史死亡信息】**\n"
         if self.app.state.history:
@@ -76,12 +87,12 @@ class SpeechHandler:
         common_prefix = "【注意】请务必将你的发言控制在300字以内，以免耽误其他玩家的发言时间。\n"
         common_suffix = "\n【提醒】请保持发言简洁明了，限于300字以内。"
 
-        # 首先判断是否是遗言阶段（玩家已死亡）
-        if not player.alive:
-            # 遗言阶段 - 无论当前是白天还是夜晚
-            phase_indicator = "【当前阶段：遗言阶段】\n"
-            # 在 prompt 最前面添加"玩家X开始发表遗言..."
-            start_line = f"玩家 {player_id} 开始发表遗言...\n"
+        # 遗言阶段（死亡玩家）
+        if is_last_words:
+            phase_indicator = "【当前阶段：遗言发言阶段】\n"
+            # 在 prompt 最前面添加"玩家X开始遗言..."
+            start_line = f"玩家 {player_id} 开始遗言...\n"
+            
             if player.identity == "平民":
                 role_tip = (
                     "【提示-平民】作为平民，这是你最后的机会！\n"
@@ -218,6 +229,9 @@ class SpeechHandler:
                         f"**【历史白天发言】**\n{history_speeches}\n" +
                         f"**【历史遗言记录】**\n{last_words}\n" +
                         role_tip + footer + common_suffix)
+
+            # 日志记录开始遗言
+            self.app.log_system(f"玩家 {player_id} 开始遗言发言...")
 
         # 如果不是遗言阶段，则按照正常的白天/夜晚阶段处理
         elif self.app.state.phase == "day":
@@ -383,6 +397,10 @@ class SpeechHandler:
                           f"**【历史白天发言】**\n{history_speeches}\n" +
                           f"**【历史遗言记录】**\n{last_words}\n" +
                           role_tip + footer + common_suffix)
+
+            # 日志记录开始发言
+            identity_display = player.identity if player.identity != "空" else "玩家"
+            self.app.log_system(f"{identity_display} {player_id} 开始白天发言...")
 
         # 夜晚发言阶段（这里只考虑狼人发言；预言家夜晚发言由 VoteHandler 触发）
         else:  # 只有狼人在夜晚可以发言，且之前已经做过检查
