@@ -13,7 +13,7 @@ class UIHandler:
         
         # 添加主题相关属性 - 修改为更合适的主题
         self.day_theme = "journal"  # 白天主题 - 真正的橙色系
-        self.night_theme = "flatly"  # 夜晚主题 - 淡灰色系，提供更舒适的视觉体验
+        self.night_theme = "cosmo"  # 夜晚主题 - 中等灰色主题，现代风格
         self.current_theme = self.day_theme
         
         # 存储头像引用，防止被垃圾回收
