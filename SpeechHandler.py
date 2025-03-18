@@ -441,6 +441,9 @@ class SpeechHandler:
                 # 在角色提示词前添加警长特定提示
                 role_tip = sheriff_guidance + role_tip
 
+                # 获取存活玩家列表
+                alive_players = [i for i, p in self.app.state.players.items() if p.exists and p.alive and i != player_id]
+
                 # 读取玩家自己所有的白天投票记录
                 player_day_votes = self._read_player_history_day_votes(player_id)
                 daytime_speeches = self._read_day_speeches()
@@ -488,6 +491,9 @@ class SpeechHandler:
                 # 在角色提示词前添加警长特定提示
                 role_tip = sheriff_guidance + role_tip
 
+                # 获取存活玩家列表
+                alive_players = [i for i, p in self.app.state.players.items() if p.exists and p.alive and i != player_id]
+
                 # 读取玩家自己所有的白天和夜晚投票记录
                 player_day_votes = self._read_player_history_day_votes(player_id)
                 player_night_votes = self._read_player_history_night_votes(player_id)
@@ -534,6 +540,9 @@ class SpeechHandler:
                 
                 # 在角色提示词前添加警长特定提示
                 role_tip = sheriff_guidance + role_tip
+
+                # 获取存活玩家列表
+                alive_players = [i for i, p in self.app.state.players.items() if p.exists and p.alive and i != player_id]
 
                 # 读取玩家自己所有的白天和夜晚投票记录
                 player_day_votes = self._read_player_history_day_votes(player_id)
@@ -583,6 +592,9 @@ class SpeechHandler:
                 
                 # 在角色提示词前添加警长特定提示
                 role_tip = sheriff_guidance + role_tip
+
+                # 获取存活玩家列表
+                alive_players = [i for i, p in self.app.state.players.items() if p.exists and p.alive and i != player_id]
 
                 # 读取玩家自己所有的白天投票记录
                 player_day_votes = self._read_player_history_day_votes(player_id)
@@ -636,6 +648,9 @@ class SpeechHandler:
                 poison_used = self.app.state.witch_poison_used.get(player_id, False)
                 drug_status = f"**【女巫药水状态】**\n救人药：{'已使用' if save_used else '未使用'}\n毒药：{'已使用' if poison_used else '未使用'}\n"
 
+                # 获取存活玩家列表
+                alive_players = [i for i, p in self.app.state.players.items() if p.exists and p.alive and i != player_id]
+
                 # 读取玩家自己所有的白天投票记录
                 player_day_votes = self._read_player_history_day_votes(player_id)
                 # 读取玩家自己所有的夜晚投票记录（使用药水记录）
@@ -680,6 +695,9 @@ class SpeechHandler:
                 "保持发言节奏紧凑，确保在300字以内，不暴露破绽。\n"
                 "⚠️ 请务必将你的发言控制在300字以内！"
             )
+            # 获取存活玩家列表
+            alive_players = [i for i, p in self.app.state.players.items() if p.exists and p.alive and i != player_id]
+            
             # 读取当前天数白天投票和所有历史投票
             player_day_votes = self._read_player_history_day_votes(player_id)
             player_night_votes = self._read_player_history_night_votes(player_id)
@@ -1006,7 +1024,7 @@ class SpeechHandler:
         
         # 构建当前游戏状态信息
         game_state_info = "【当前游戏状态】\n"
-        alive_players = [p_id for p_id, p in self.app.state.players.items() if p.alive and p.exists]
+        alive_players = [i for i, p in self.app.state.players.items() if p.exists and p.alive and i != player_id]
         game_state_info += f"存活玩家：{', '.join([str(p_id) for p_id in alive_players])}\n"
         
         # 根据身份提供不同的提示
