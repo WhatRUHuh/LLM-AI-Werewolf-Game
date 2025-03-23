@@ -1,4 +1,4 @@
-﻿from record import save_daytime_speech, save_night_speech, save_sheriff_speech
+﻿from record import save_daytime_speech, save_night_speech, save_sheriff_speech, save_last_words_record
 from readrecord import (get_last_words_content, get_day_vote_reasoning_player, get_night_vote_reasoning_player)
 import os
 import re
@@ -106,11 +106,28 @@ class SpeechHandler:
                 
                 # 根据发言次数添加不同提示
                 if self.sheriff_speak_count[player_id] == 1:
-                    sheriff_guidance = "\n【警长提示】作为警长，你现在需要决定发言顺序！\n"
+                    sheriff_guidance = (
+                        "\n【警长提示】作为警长，你现在需要决定发言顺序！\n"
+                        "【警长提示】你的发言顺序将直接影响到所有玩家的信息获取和判断，关乎这场游戏的胜负走向！\n"
+                        "【警长提示】你要清晰你的目的！根据目的，合理安排发言顺序！\n"
+                        "【警长提示】请结合自己的身份，确定好现在的白天发言顺序。\n"
+                        "【警长提示】除此之外，你还要告诉大家为什么这么安排。\n"
+                    )
                 elif self.sheriff_speak_count[player_id] == 2:
-                    sheriff_guidance = "\n【警长提示】现在是正常的发言阶段！\n"
+                    sheriff_guidance = (
+                        "\n【警长提示】现在是正常的发言阶段！\n"
+                        "【警长提示】作为警长，你的发言具有更高的权威性和影响力。\n"
+                        "【警长提示】请认真思考你的身份和立场，发表自己的见解。\n"
+                        "【警长提示】你可以结合之前玩家的发言，进行分析和推理。\n"
+                    )
                 elif self.sheriff_speak_count[player_id] >= 3:
-                    sheriff_guidance = "\n【警长提示】请对今天所有人的发言进行总结！\n"
+                    sheriff_guidance = (
+                        "\n【警长提示】请对今天所有人的发言进行总结！\n"
+                        "【警长提示】这是你今天最后的发言机会，请充分利用！\n"
+                        "【警长提示】分析各位玩家的发言逻辑和可信度，提出你的判断。\n"
+                        "【警长提示】为大家提供一个有价值的信息框架，帮助投票决策。\n"
+                        "【警长提示】你的总结将极大影响今天的投票结果，请慎重！\n"
+                    )
             return sheriff_guidance
 
         # 遗言阶段（死亡玩家）
@@ -999,22 +1016,34 @@ class SpeechHandler:
         return sheriff_speeches
         
     def _read_player_sheriff_vote(self, player_id):
-        """读取特定玩家的警长竞选投票"""
-        player_sheriff_vote = ""
-        record_root = "record"
-        day_folder = os.path.join(record_root, f"第{self.app.state.day}天", "警长竞选", "竞选投票")
-        if os.path.exists(day_folder):
-            player_file = os.path.join(day_folder, f"玩家{player_id}竞选投票.txt")
-            if os.path.exists(player_file):
-                try:
-                    with open(player_file, "r", encoding="utf-8") as f:
-                        content = f.read().strip()
-                        if content:
-                            player_sheriff_vote = f"**警长竞选投票**: {content}\n\n"
-                except Exception as e:
-                    self.app.log_system(f"[警告] 读取玩家 {player_id} 警长竞选投票失败: {e}")
-        return player_sheriff_vote
+        # 读取特定玩家的警长投票记录
+        try:
+            voting_content = ""
+            day_vote_reasoning = get_day_vote_reasoning_player(player_id, 0)
+            if day_vote_reasoning:
+                voting_content += f"玩家 {player_id} 的警长投票结果: {day_vote_reasoning}\n"
+            return voting_content
+        except Exception as e:
+            self.app.log_system(f"读取警长投票记录时出错: {e}")
+            return "没有警长投票记录。\n"
 
+    def _read_last_words(self):
+        # 读取所有历史遗言记录
+        try:
+            last_words_content = ""
+            if os.path.exists("record/遗言"):
+                for filename in os.listdir("record/遗言"):
+                    if filename.endswith(".txt"):
+                        player_id = filename.split("_")[0]
+                        day = filename.split("_")[1].split(".")[0]
+                        with open(f"record/遗言/{filename}", "r", encoding="utf-8") as f:
+                            content = f.read().strip()
+                            last_words_content += f"【玩家{player_id}】第{day}天遗言:\n{content}\n\n"
+            return last_words_content if last_words_content else "没有历史遗言记录。\n"
+        except Exception as e:
+            self.app.log_system(f"读取遗言记录时出错: {e}")
+            return "读取遗言记录时出错。\n"
+            
     def prepare_last_words(self, player_id):
         """准备玩家遗言"""
         player = self.app.state.players[player_id]
@@ -1185,6 +1214,8 @@ class SpeechHandler:
                         self.app.log_system(f"警长 {player_id} 将警徽传递给了玩家 {target_id}")
                         self.app.summary_text.insert(tk.END, f"警长 {player_id} 将警徽传递给了玩家 {target_id}\n", f"p{player_id}")
                         self.app.summary_text.see(tk.END)
+                        # 更新UI中的警长标签显示
+                        self.app.ui_handler.update_sheriff_labels()
                     else:
                         self.app.log_system(f"警长 {player_id} 尝试将警徽传递给无效的玩家 {target_id}，警徽将被销毁")
                 
@@ -1195,75 +1226,17 @@ class SpeechHandler:
                     self.app.log_system(f"警长 {player_id} 销毁了警徽")
                     self.app.summary_text.insert(tk.END, f"警长 {player_id} 销毁了警徽\n", f"p{player_id}")
                     self.app.summary_text.see(tk.END)
+                    # 更新UI中的警长标签显示
+                    self.app.ui_handler.update_sheriff_labels()
             
             # 检查是否是猎人
             if player.identity == "猎人":
                 # 检查开枪带走
                 hunter_shot = re.search(r'\[开枪(?:玩家)?(\d+)\]|【开枪(?:玩家)?(\d+)】|开枪(?:玩家)?(\d+)|\[带走(?:玩家)?(\d+)\]|【带走(?:玩家)?(\d+)】|带走(?:玩家)?(\d+)', text_parsed)
                 if hunter_shot:
-                    target_id = int(hunter_shot.group(1) or hunter_shot.group(2) or hunter_shot.group(3) or 
-                                  hunter_shot.group(4) or hunter_shot.group(5) or hunter_shot.group(6))
-                    if target_id in self.app.state.players and self.app.state.players[target_id].exists and self.app.state.players[target_id].alive:
-                        self.app.state.players[target_id].alive = False
-                        self.app.state.dead_today.append(target_id)
-                        self.app.state.current_day_summary["deaths"].append((target_id, "被猎人带走"))
-                        self.app.log_system(f"猎人 {player_id} 带走了玩家 {target_id}")
-                        self.app.summary_text.insert(tk.END, f"猎人 {player_id} 带走了玩家 {target_id}\n", f"p{player_id}")
-                        self.app.summary_text.see(tk.END)
-                        
-                        # 启用遗言按钮
-                        self.app.lastword_buttons[target_id].config(state=tk.NORMAL)
-                        
-                        # 检查游戏是否结束
-                        game_over, winner = self.app.state.check_game_over()
-                        if game_over:
-                            self.app.game_logic_handler.end_game(winner)
-                    else:
-                        self.app.log_system(f"猎人 {player_id} 尝试带走无效的玩家 {target_id}")
-            
-            # 保存遗言记录
-            save_last_words_record(player_id, self.app.state.day, text_parsed)
-            
-            # 根据 TTS 开关状态播放语音
-            if self.app.tts_enabled:
-                play_tts(text_parsed, player_id, self.app.tts_speed)
-            
-            # 检查是否是猎人的遗言，如果是，处理开枪逻辑
-            if player_id == self.app.state.hunter_id:
-                # 用正则表达式匹配各种格式中的数字，表示猎人要开枪的目标
-                # 1. 英文方括号[开枪X]
-                hunter_shoot = re.findall(r'\[开枪(\d+)\]', text_parsed)
-                
-                # 2. 中文方括号【开枪X】
-                cn_hunter_shoot = re.findall(r'【开枪(\d+)】', text_parsed)
-                
-                # 3. 直接提及检查
-                direct_shoot = re.findall(r'开枪\s*(\d+)', text_parsed)
-                
-                target_player_id = None
-                
-                # 按照优先级依次处理
-                if hunter_shoot:
-                    target_id_str = hunter_shoot[-1]
-                    try:
-                        target_player_id = int(target_id_str)
-                    except ValueError:
-                        self.app.log_system(f"[警告] 无法解析猎人 {player_id} 的开枪目标编号。")
-                elif cn_hunter_shoot:
-                    target_id_str = cn_hunter_shoot[-1]
-                    try:
-                        target_player_id = int(target_id_str)
-                    except ValueError:
-                        self.app.log_system(f"[警告] 无法解析猎人 {player_id} 的开枪目标编号。")
-                elif direct_shoot:
-                    target_id_str = direct_shoot[-1]
-                    try:
-                        target_player_id = int(target_id_str)
-                    except ValueError:
-                        self.app.log_system(f"[警告] 无法解析猎人 {player_id} 的开枪目标编号。")
-                
-                # 处理开枪
-                if target_player_id is not None:
+                    target_player_id = int(hunter_shot.group(1) or hunter_shot.group(2) or hunter_shot.group(3) or 
+                                          hunter_shot.group(4) or hunter_shot.group(5) or hunter_shot.group(6))
+                    
                     target_player = self.app.state.players.get(target_player_id)
                     if target_player and target_player.exists and target_player.alive:
                         # 开枪击杀目标
@@ -1271,17 +1244,36 @@ class SpeechHandler:
                         target_player.death_reason = "被猎人开枪击杀"
                         target_player.death_day = self.app.state.day
                         
+                        # 更新死亡记录
+                        self.app.state.dead_today.append(target_player_id)
+                        self.app.state.current_day_summary["deaths"].append((target_player_id, "被猎人带走"))
+                        
                         # 更新UI显示死亡状态
-                        self.app.ui_handler.update_player_status(target_player_id)
+                        self.app.ui_handler.update_player_status()
                         
                         # 记录开枪击杀
                         self.app.log_system(f"猎人 {player_id} 开枪击杀了玩家 {target_player_id}！")
                         self.app.summary_text.insert(tk.END, f"猎人玩家 {player_id} 开枪击杀了玩家 {target_player_id}！\n", f"p{player_id}")
                         self.app.summary_text.see(tk.END)
+                        
+                        # 启用遗言按钮
+                        self.app.lastword_buttons[target_player_id].config(state=tk.NORMAL)
+                        
+                        # 检查游戏是否结束
+                        game_over, winner = self.app.state.check_game_over()
+                        if game_over:
+                            self.app.game_logic_handler.end_game(winner)
                     else:
                         self.app.log_system(f"[警告] 猎人 {player_id} 选择的开枪目标 {target_player_id} 不存在或已死亡。")
                 else:
                     self.app.log_system(f"猎人 {player_id} 没有选择开枪目标。")
+            
+            # 保存遗言记录
+            save_last_words_record(player_id, self.app.state.day, player.death_reason or "未知原因", text_parsed)
+            
+            # 根据 TTS 开关状态播放语音
+            if self.app.tts_enabled:
+                play_tts(text_parsed, player_id, self.app.tts_speed)
         
         self.model_handler.call_model(player.model, prompt, self.app.summary_text, tag=f"p{player_id}",
                                       callback=last_words_callback, player_id=player_id)

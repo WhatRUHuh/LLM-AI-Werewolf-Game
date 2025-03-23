@@ -75,3 +75,5 @@ class Player:
         self.alive = True
         self.exists = True
         self.vote_history = []
+        self.death_reason = None  # 添加死亡原因属性
+        self.death_day = None     # 添加死亡日期属性

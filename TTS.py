@@ -36,8 +36,14 @@ async def play_edge_tts(text, voice, output_file="temp_audio.mp3", rate="+0%"):
                 if chunk["type"] == "audio":
                     f.write(chunk["data"])
         print(f"语音已保存到 {output_file}")
-        print(f"语音已保存到 {output_file}")
         os.startfile(output_file) # 尝试自动播放音频文件 (Windows only)
+    except edge_tts.exceptions.HTTPStatusError as e:
+        if "503" in str(e):
+            print(f"语音服务暂时不可用(503错误)，请稍后再试: {e}")
+        else:
+            print(f"语音服务错误: {e}")
+    except edge_tts.exceptions.ConnectionError as e:
+        print(f"网络连接错误，无法连接到语音服务: {e}")
     except Exception as e:
         print(f"发生错误: {e}")
 

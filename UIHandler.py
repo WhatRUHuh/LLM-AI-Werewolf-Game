@@ -241,7 +241,7 @@ class UIHandler:
         self.app.vote_buttons[i] = vote_btn
         
         # 遗言按钮
-        lw_btn = ttk.Button(button_frame, text="遗言", command=lambda pid=i: self.app.speech_handler.player_speak(pid))
+        lw_btn = ttk.Button(button_frame, text="遗言", command=lambda pid=i: self.app.speech_handler.prepare_last_words(pid))
         lw_btn.pack(side=tk.LEFT, padx=5)
         lw_btn.config(state=tk.DISABLED)
         self.app.lastword_buttons[i] = lw_btn
