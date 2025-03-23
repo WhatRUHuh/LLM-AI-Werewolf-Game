@@ -74,6 +74,4 @@ class Player:
         self.model = model
         self.alive = True
         self.exists = True
-        self.speech_history = []
         self.vote_history = []
-        self.last_words = ""

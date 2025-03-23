@@ -81,6 +81,14 @@ class GameLogicHandler:
                 else:
                     self.app.vote_buttons[i].config(state=tk.DISABLED)
                 
+                # 特殊处理：检查是否是被猎人带走的玩家或常规死亡玩家
+                # 对于被猎人带走的玩家，遗言按钮应该保持启用状态
+                is_hunter_victim = False
+                for death_id, death_cause in self.app.state.current_day_summary.get("deaths", []):
+                    if death_id == i and death_cause == "被猎人带走":
+                        is_hunter_victim = True
+                        break
+                
                 # 无论当前是什么阶段，死亡玩家的遗言按钮都保持启用
                 self.app.lastword_buttons[i].config(state=tk.NORMAL)
             else:

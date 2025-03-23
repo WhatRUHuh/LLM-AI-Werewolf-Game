@@ -316,9 +316,29 @@ class VoteHandler:
                 history_night_speeches = self._read_history_night_speeches()
                 teammates = [p.player_id for p in self.app.state.players.values() if p.identity == "狼人" and p.player_id != player_id]
                 night_speeches_teammates = ""
+                
+                # 获取当前狼人队友夜晚发言的逻辑 - 只从文件中读取
                 for p_id in teammates:
-                    if self.app.state.players[p_id].speech_history and self.app.state.players[p_id].speech_history[-1]:
-                        night_speeches_teammates += f"**队友玩家{p_id}**: {self.app.state.players[p_id].speech_history[-1]}\n\n"
+                    # 确认队友玩家是存活的狼人
+                    teammate = self.app.state.players.get(p_id)
+                    if teammate and teammate.alive and teammate.identity == "狼人":
+                        # 在record目录中查找当前夜晚该队友的发言
+                        import os
+                        teammate_speech = ""
+                        night_speech_path = os.path.join("record", f"第{self.app.state.day}天", "夜晚玩家发言", f"玩家{p_id}夜晚发言.txt")
+                        if os.path.exists(night_speech_path):
+                            try:
+                                with open(night_speech_path, "r", encoding="utf-8") as f:
+                                    teammate_speech = f.read().strip()
+                                    if teammate_speech:
+                                        night_speeches_teammates += f"**队友玩家{p_id}**: {teammate_speech}\n\n"
+                            except Exception as e:
+                                self.app.log_system(f"[警告] 读取队友玩家 {p_id} 夜晚发言失败: {e}")
+                
+                # 如果没有找到任何队友发言，添加说明
+                if not night_speeches_teammates:
+                    night_speeches_teammates = "目前没有队友发言记录。\n"
+                
                 prompt = (start_line + common_prefix + phase_indicator + header_footer +
                           role_tip + "\n" +
                           f"**【你的历史白天投票记录】**\n{player_day_votes}\n" +
@@ -787,8 +807,8 @@ class VoteHandler:
         record_root = "record"
         current_day = self.app.state.day
         
-        # 从第1天到当前天数-1，读取所有历史发言
-        for day in range(1, current_day):
+        # 从第0天到当前天数-1，读取所有历史发言
+        for day in range(0, current_day):
             day_folder = os.path.join(record_root, f"第{day}天", "白天玩家发言")
             if os.path.exists(day_folder):
                 import re
@@ -817,8 +837,8 @@ class VoteHandler:
         record_root = "record"
         current_day = self.app.state.day
         
-        # 从第1天到当前天数-1，读取所有历史投票
-        for day in range(1, current_day):
+        # 从第0天到当前天数-1，读取所有历史投票
+        for day in range(0, current_day):
             day_folder = os.path.join(record_root, f"第{day}天", "白天玩家投票")
             if os.path.exists(day_folder):
                 import re
@@ -847,8 +867,8 @@ class VoteHandler:
         record_root = "record"
         current_day = self.app.state.day
         
-        # 从第1天到当前天数-1，读取所有历史发言
-        for day in range(1, current_day):
+        # 从第0天到当前天数-1，读取所有历史发言
+        for day in range(0, current_day):
             day_folder = os.path.join(record_root, f"第{day}天", "夜晚玩家发言")
             if os.path.exists(day_folder):
                 import re
@@ -878,8 +898,8 @@ class VoteHandler:
         record_root = "record"
         current_day = self.app.state.day
         
-        # 从第1天到当前天数-1，读取所有历史投票
-        for day in range(1, current_day):
+        # 从第0天到当前天数-1，读取所有历史投票
+        for day in range(0, current_day):
             day_folder = os.path.join(record_root, f"第{day}天", "夜晚玩家投票")
             if os.path.exists(day_folder):
                 import re
@@ -923,8 +943,8 @@ class VoteHandler:
         record_root = "record"
         current_day = self.app.state.day
         
-        # 从第1天到当前天数-1，读取所有历史投票
-        for day in range(1, current_day):
+        # 从第0天到当前天数-1，读取所有历史投票
+        for day in range(0, current_day):
             day_folder = os.path.join(record_root, f"第{day}天", "白天玩家投票")
             if os.path.exists(day_folder):
                 player_file = os.path.join(day_folder, f"玩家{player_id}白天投票.txt")
@@ -946,8 +966,8 @@ class VoteHandler:
         record_root = "record"
         current_day = self.app.state.day
         
-        # 从第1天到当前天数-1，读取所有历史投票
-        for day in range(1, current_day):
+        # 从第0天到当前天数-1，读取所有历史投票
+        for day in range(0, current_day):
             day_folder = os.path.join(record_root, f"第{day}天", "夜晚玩家投票")
             if os.path.exists(day_folder):
                 player_file = os.path.join(day_folder, f"玩家{player_id}夜晚投票.txt")
