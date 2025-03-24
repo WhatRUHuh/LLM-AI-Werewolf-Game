@@ -10,6 +10,11 @@ class SpeechHandler:
         self.app = app
         self.model_handler = app.model_handler  # 获取 ModelHandler 实例
         self.sheriff_speak_count = {}  # 跟踪每个警长的发言次数
+        
+    def reset_sheriff_speak_count(self):
+        """重置警长发言计数，用于天数切换时调用"""
+        self.sheriff_speak_count = {}
+        self.app.log_system("已重置警长发言计数")
 
     def player_speak(self, player_id):
         player = self.app.state.players[player_id]

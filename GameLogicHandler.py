@@ -288,6 +288,8 @@ class GameLogicHandler:
         self.app.state.reset_day()
         create_day_record_folder(self.app.state.day)
         self.app.day_label.config(text=f"第 {self.app.state.day} 天")
+        # 重置警长发言计数
+        self.app.speech_handler.reset_sheriff_speak_count()
 
     def next_round(self):
         self.app.log_system("【进入下一回合】")
