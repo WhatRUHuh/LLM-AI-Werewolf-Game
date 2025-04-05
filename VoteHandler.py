@@ -79,7 +79,7 @@ class VoteHandler:
             else:
                 phase_indicator = "【当前阶段：白天投票阶段】\n"
                 start_line = f"玩家 {player_id} 开始投票...\n"
-            
+
             # 获取警长竞选提示
             sheriff_vote_notice = ""
             if self.app.state.day == 0:  # 第0天是警长竞选阶段
@@ -87,20 +87,20 @@ class VoteHandler:
                     "\n【警长竞选投票提示】现在是警长竞选投票阶段，请投票选出你认为最适合担任警长的玩家！"
                     "得票最多的玩家将成为警长。请考虑每位玩家的竞选发言，并做出你的选择。\n"
                 )
-            
+
             # 获取警长竞选发言
             sheriff_speeches = ""
             if self.app.state.sheriff_id is not None:
                 sheriff_speeches = f"**【当前警长】**: 玩家{self.app.state.sheriff_id}\n\n"
-            
+
             if self.app.state.day == 0:  # 第0天是警长竞选阶段
                 sheriff_speeches += self._read_sheriff_speeches()
-                
+
             # 获取玩家自己的警长竞选投票
             player_sheriff_vote = ""
             if self.app.state.sheriff_id is not None:
                 player_sheriff_vote = self._read_player_sheriff_vote(player_id)
-            
+
             if player.identity == "平民":
                 if self.app.state.day == 0:
                     role_tip = ("【提示-平民】作为平民，请结合所有玩家的竞选发言，"
@@ -109,19 +109,19 @@ class VoteHandler:
                 else:
                     role_tip = ("【提示-平民】作为平民，请结合所有已知信息（历史死亡、游戏状态、前一日投票总结、其他玩家发言及遗言记录），"
                                 "做出你认为最合理的投票选择，并务必说明理由。请注意隐藏身份，确保投票内容控制在300字以内！")
-                
+
                 # 读取玩家自己所有的白天投票记录
                 player_day_votes = self._read_player_history_day_votes(player_id)
                 daytime_speeches = self._read_day_speeches()
                 history_speeches = self._read_history_day_speeches()
-                
+
                 # 添加警长竞选相关信息
                 sheriff_speeches = ""
                 player_sheriff_vote = ""
                 if self.app.state.day == 0:
                     sheriff_speeches = self._read_sheriff_speeches()
                     player_sheriff_vote = self._read_player_sheriff_vote(player_id)
-                
+
                 prompt = (start_line + common_prefix + phase_indicator + header_footer +
                           role_tip + "\n" +
                           f"**【你的历史白天投票记录】**\n{player_day_votes}\n" +
@@ -148,7 +148,7 @@ class VoteHandler:
                 else:
                     role_tip = ("【提示-狼人】作为狼人，请结合所有已知信息（历史死亡、游戏状态、前一日投票总结、其他玩家发言及遗言记录），"
                                 "做出你的投票选择。注意隐藏身份、迷惑好人，同时务必说明理由，确保投票内容控制在300字以内！")
-                
+
                 # 读取玩家自己所有的白天和夜晚投票记录
                 player_day_votes = self._read_player_history_day_votes(player_id)
                 player_night_votes = self._read_player_history_night_votes(player_id)
@@ -184,7 +184,7 @@ class VoteHandler:
                 else:
                     role_tip = ("【提示-预言家】作为预言家，请结合所有已知信息（历史死亡、游戏状态、前一日投票总结、其他玩家发言、查验信息及遗言记录），"
                                 "做出你认为最合理的投票选择，并务必说明理由。请注意保持隐晦，确保投票内容控制在300字以内！")
-                
+
                 # 读取玩家自己所有的白天和夜晚投票记录
                 player_day_votes = self._read_player_history_day_votes(player_id)
                 player_night_votes = self._read_player_history_night_votes(player_id)
@@ -213,7 +213,7 @@ class VoteHandler:
                           f"存活玩家：{', '.join([str(p_id) for p_id in [p.player_id for p in self.app.state.players.values() if p.exists and p.alive]])}\n"
                           f"你的身份：{player.identity}\n"
                           f"请发表你的投票（300字以内）：")
-            
+
             elif player.identity == "猎人":
                 if self.app.state.day == 0:
                     role_tip = ("【提示-猎人】作为猎人，请结合所有玩家的竞选发言，"
@@ -222,19 +222,19 @@ class VoteHandler:
                 else:
                     role_tip = ("【提示-猎人】作为猎人，请结合所有已知信息（历史死亡、游戏状态、前一日投票总结、其他玩家发言及遗言记录），"
                                 "做出你认为最合理的投票选择，并务必说明理由。记住你死亡时可以带走一名玩家，确保投票内容控制在300字以内！")
-                
+
                 # 读取玩家自己所有的白天投票记录
                 player_day_votes = self._read_player_history_day_votes(player_id)
                 daytime_speeches = self._read_day_speeches()
                 history_speeches = self._read_history_day_speeches()
-                
+
                 # 添加警长竞选相关信息
                 sheriff_speeches = ""
                 player_sheriff_vote = ""
                 if self.app.state.day == 0:
                     sheriff_speeches = self._read_sheriff_speeches()
                     player_sheriff_vote = self._read_player_sheriff_vote(player_id)
-                
+
                 prompt = (start_line + common_prefix + phase_indicator + header_footer +
                           role_tip + "\n" +
                           f"**【你的历史白天投票记录】**\n{player_day_votes}\n" +
@@ -253,13 +253,13 @@ class VoteHandler:
                           f"存活玩家：{', '.join([str(p_id) for p_id in [p.player_id for p in self.app.state.players.values() if p.exists and p.alive]])}\n"
                           f"你的身份：{player.identity}\n"
                           f"请发表你的投票（300字以内）：")
-            
+
             elif player.identity == "女巫":
                 # 读取女巫的药水使用状态
                 save_used = self.app.state.witch_save_used.get(player_id, False)
                 poison_used = self.app.state.witch_poison_used.get(player_id, False)
                 drug_status = f"**【女巫药水状态】**\n救人药：{'已使用' if save_used else '未使用'}\n毒药：{'已使用' if poison_used else '未使用'}\n"
-                
+
                 if self.app.state.day == 0:
                     role_tip = ("【提示-女巫】作为女巫，请结合所有玩家的竞选发言，"
                                "选出你认为最适合担任警长的玩家，并务必说明理由。确保投票内容控制在300字以内！")
@@ -267,20 +267,20 @@ class VoteHandler:
                 else:
                     role_tip = ("【提示-女巫】作为女巫，请结合所有已知信息（历史死亡、游戏状态、前一日投票总结、其他玩家发言及遗言记录），"
                                 "做出你认为最合理的投票选择，并务必说明理由。记住你可以在关键时刻使用药水，确保投票内容控制在300字以内！")
-                
+
                 # 读取玩家自己所有的白天投票记录和夜间使用药水记录
                 player_day_votes = self._read_player_history_day_votes(player_id)
                 player_night_votes = self._read_player_history_night_votes(player_id)
                 daytime_speeches = self._read_day_speeches()
                 history_speeches = self._read_history_day_speeches()
-                
+
                 # 添加警长竞选相关信息
                 sheriff_speeches = ""
                 player_sheriff_vote = ""
                 if self.app.state.day == 0:
                     sheriff_speeches = self._read_sheriff_speeches()
                     player_sheriff_vote = self._read_player_sheriff_vote(player_id)
-                
+
                 prompt = (start_line + common_prefix + phase_indicator + header_footer +
                           role_tip + "\n" +
                           drug_status +
@@ -316,7 +316,7 @@ class VoteHandler:
                 history_night_speeches = self._read_history_night_speeches()
                 teammates = [p.player_id for p in self.app.state.players.values() if p.identity == "狼人" and p.player_id != player_id]
                 night_speeches_teammates = ""
-                
+
                 # 获取当前狼人队友夜晚发言的逻辑 - 只从文件中读取
                 for p_id in teammates:
                     # 确认队友玩家是存活的狼人
@@ -334,11 +334,11 @@ class VoteHandler:
                                         night_speeches_teammates += f"**队友玩家{p_id}**: {teammate_speech}\n\n"
                             except Exception as e:
                                 self.app.log_system(f"[警告] 读取队友玩家 {p_id} 夜晚发言失败: {e}")
-                
+
                 # 如果没有找到任何队友发言，添加说明
                 if not night_speeches_teammates:
                     night_speeches_teammates = "目前没有队友发言记录。\n"
-                
+
                 prompt = (start_line + common_prefix + phase_indicator + header_footer +
                           role_tip + "\n" +
                           f"**【你的历史白天投票记录】**\n{player_day_votes}\n" +
@@ -391,7 +391,7 @@ class VoteHandler:
                 # 读取女巫的药水使用状态
                 save_used = self.app.state.witch_save_used.get(player_id, False)
                 poison_used = self.app.state.witch_poison_used.get(player_id, False)
-                
+
                 # 获取狼人今晚计划杀死的目标
                 wolf_target = self.app.state.wolf_kill_target
                 wolf_target_info = ""
@@ -418,7 +418,7 @@ class VoteHandler:
                     if not poison_used:
                         wolf_target_info += "你可以输入 [玩家编号] 使用毒药毒死该玩家\n"
                     wolf_target_info += "如果不想使用任何药水，请输入 [弃票] 或 [不使用]\n"
-                
+
                 # 构建女巫的提示
                 if not save_used and not poison_used:
                     role_tip = ("【提示-夜晚女巫】作为女巫，现在是夜晚阶段，你可以使用救人药或毒药！\n"
@@ -432,16 +432,16 @@ class VoteHandler:
                 elif not poison_used:
                     role_tip = ("【提示-夜晚女巫】作为女巫，现在是夜晚阶段，你已经用掉了救人药，但仍可以使用毒药！\n"
                                "如果选择存活的人，将使用毒药将其毒死（一局游戏只能用一次）")
-                
+
                 # 构建药水状态信息
                 drug_status = f"**【女巫药水状态】**\n救人药：{'已使用' if save_used else '未使用'}\n毒药：{'已使用' if poison_used else '未使用'}\n"
-                
+
                 # 读取玩家自己所有的白天和夜晚投票记录
                 player_day_votes = self._read_player_history_day_votes(player_id)
                 player_night_votes = self._read_player_history_night_votes(player_id)
                 daytime_speeches = self._read_day_speeches()
                 history_speeches = self._read_history_day_speeches()
-                
+
                 prompt = (start_line + common_prefix + phase_indicator + header_footer +
                           role_tip + "\n" +
                           drug_status +
@@ -464,13 +464,13 @@ class VoteHandler:
                 # 通用的夜晚投票提示
                 role_tip = (f"【提示-夜晚{player.identity}】作为{player.identity}，现在是夜晚阶段，"
                            "请结合所有已知信息，做出你的投票选择，并务必说明理由。请确保投票内容控制在300字以内！")
-                
+
                 # 读取玩家自己所有的白天投票记录
                 player_day_votes = self._read_player_history_day_votes(player_id)
                 player_night_votes = self._read_player_history_night_votes(player_id)
                 daytime_speeches = self._read_day_speeches()
                 history_speeches = self._read_history_day_speeches()
-                
+
                 prompt = (start_line + common_prefix + phase_indicator + header_footer +
                           role_tip + "\n" +
                           f"**【你的历史白天投票记录】**\n{player_day_votes}\n" +
@@ -499,30 +499,30 @@ class VoteHandler:
             # 1. 英文方括号[玩家X]和[X]
             player_brackets = re.findall(r'\[玩家(\d+)\]', text_parsed)
             brackets_number = re.findall(r'\[(\d+)\]', text_parsed)
-            
+
             # 2. 英文方括号的[弃票]或[随机]
             eng_random_choice = re.search(r'\[随机\]', text_parsed)
             eng_abstain_choice = re.search(r'\[弃票\]', text_parsed)
             eng_skip_choice = re.search(r'\[跳过\]|\[不使用\]|\[不用\]', text_parsed)
-            
+
             # 3. 中文方括号【玩家X】和【X】
             chinese_player_brackets = re.findall(r'【玩家(\d+)】', text_parsed)
             chinese_brackets_number = re.findall(r'【(\d+)】', text_parsed)
-            
+
             # 4. 中文方括号的【弃票】或【随机】
             cn_random_choice = re.search(r'【随机】', text_parsed)
             cn_abstain_choice = re.search(r'【弃票】', text_parsed)
             cn_skip_choice = re.search(r'【跳过】|【不使用】|【不用】', text_parsed)
-            
+
             # 5. 直接说弃票或随机（无括号）
             direct_random_choice = re.search(r'(?<!\[|【)随机(?!\]|】)', text_parsed)
             direct_abstain_choice = re.search(r'(?<!\[|【)弃票(?!\]|】)', text_parsed)
             direct_skip_choice = re.search(r'(?<!\[|【)跳过(?!\]|】)|(?<!\[|【)不使用(?!\]|】)|(?<!\[|【)不用(?!\]|】)', text_parsed)
-            
+
             # 6. 直接提及检查
             direct_player_mention = re.findall(r'玩家\s*(\d+)', text_parsed)
             direct_number = re.findall(r'(?<![【\[（\(])\b(\d+)\b(?![\]】）\)])', text_parsed)  # 查找不在括号内的数字
-            
+
             # 按照优先级依次处理
             if player_brackets:
                 # 1. 优先使用"[玩家X]"格式
@@ -543,12 +543,12 @@ class VoteHandler:
             # 2. 英文方括号的随机/弃票选择
             elif eng_random_choice:
                 # 随机选择一个存活的玩家
-                alive_players = [i for i, p in self.app.state.players.items() 
+                alive_players = [i for i, p in self.app.state.players.items()
                                  if p.exists and p.alive and i != player_id]
                 if not alive_players:
                     self.app.log_system(f"[警告] 玩家 {player_id} 选择随机投票，但没有有效的目标！")
                     return
-                    
+
                 vote_target = random.choice(alive_players)
                 vote_result = str(vote_target)
                 self.app.log_system(f"玩家 {player_id} 选择了[随机]投票，系统选择了玩家 {vote_target}")
@@ -580,12 +580,12 @@ class VoteHandler:
                     return
             # 4. 中文方括号的随机/弃票选择
             elif cn_random_choice:
-                alive_players = [i for i, p in self.app.state.players.items() 
+                alive_players = [i for i, p in self.app.state.players.items()
                                 if p.exists and p.alive and i != player_id]
                 if not alive_players:
                     self.app.log_system(f"[警告] 玩家 {player_id} 选择随机投票，但没有有效的目标！")
                     return
-                
+
                 vote_target = random.choice(alive_players)
                 vote_result = str(vote_target)
                 self.app.log_system(f"玩家 {player_id} 选择了【随机】投票，系统选择了玩家 {vote_target}")
@@ -602,12 +602,12 @@ class VoteHandler:
                     return
             # 5. 直接表达的随机/弃票选择（无括号）
             elif direct_random_choice:
-                alive_players = [i for i, p in self.app.state.players.items() 
+                alive_players = [i for i, p in self.app.state.players.items()
                                 if p.exists and p.alive and i != player_id]
                 if not alive_players:
                     self.app.log_system(f"[警告] 玩家 {player_id} 选择随机投票，但没有有效的目标！")
                     return
-                
+
                 vote_target = random.choice(alive_players)
                 vote_result = str(vote_target)
                 self.app.log_system(f"玩家 {player_id} 直接选择了随机投票，系统选择了玩家 {vote_target}")
@@ -642,7 +642,7 @@ class VoteHandler:
             else:
                 self.app.log_system(f"[警告] 无法解析 玩家 {player_id} 的投票目标，投票作废。")
                 return
-            
+
             # 统一处理投票逻辑
             if self.app.state.phase == "day":
                 self.app.state.day_votes[player_id] = vote_target
@@ -679,26 +679,26 @@ class VoteHandler:
                 elif player.identity == "女巫":
                     # 女巫的投票目标已经存储在vote_target中
                     # 立即处理女巫的药水效果，不等待夜晚投票结算
-                    
+
                     # 初始化女巫的药水状态（如果还没有）
                     if player_id not in self.app.state.witch_save_used:
                         self.app.state.witch_save_used[player_id] = False
                     if player_id not in self.app.state.witch_poison_used:
                         self.app.state.witch_poison_used[player_id] = False
-                        
+
                     save_used = self.app.state.witch_save_used.get(player_id, False)
                     poison_used = self.app.state.witch_poison_used.get(player_id, False)
-                    
+
                     # 检查投票目标是否有效
                     if vote_target in self.app.state.players and self.app.state.players[vote_target].exists:
                         # 如果目标是当晚狼人击杀的人，则视为使用救人药
                         wolf_target = self.app.state.wolf_kill_target
-                        
+
                         # 女巫自救或救别人的情况
                         if (vote_target == wolf_target or (wolf_target == player_id and vote_target == player_id)) and not save_used:
                             # 使用救人药
                             self.app.state.witch_save_used[player_id] = True
-                            
+
                             # 区分自救和救别人的情况
                             if vote_target == player_id and wolf_target == player_id:
                                 self.app.log_system(f"女巫 {player_id} 使用了救人药救了自己")
@@ -706,63 +706,62 @@ class VoteHandler:
                             else:
                                 self.app.log_system(f"女巫 {player_id} 使用了救人药救活了玩家 {vote_target}")
                                 self.app.summary_text.insert(tk.END, f"女巫 {player_id} 使用了救人药救活了玩家 {vote_target}！\n", f"p{player_id}")
-                            
+
                             self.app.summary_text.see(tk.END)
                             self.app.state.night_votes[player_id] = vote_target
-                            
+
                             # 标记这个目标已被女巫救活，在finalize_night_voting中不会被狼人杀死
                             self.app.state.witch_save_target = vote_target
-                            
+
                             # 确保被救玩家的生存状态为活着，移除死亡列表中的记录
                             # 防止玩家被狼人或其他方式标记为死亡后，无法被正确救活
                             if not self.app.state.players[vote_target].alive:
                                 self.app.state.players[vote_target].alive = True
-                                
+
                                 # 如果已经在当天死亡列表中，移除它
                                 if vote_target in self.app.state.dead_today:
                                     self.app.state.dead_today.remove(vote_target)
-                                
+
                                 # 从当天死亡摘要中移除
                                 deaths_to_remove = []
                                 for i, (pid, cause) in enumerate(self.app.state.current_day_summary["deaths"]):
                                     if pid == vote_target:
                                         deaths_to_remove.append(i)
-                                
+
                                 # 从后往前删除，避免索引变化
                                 for idx in sorted(deaths_to_remove, reverse=True):
                                     self.app.state.current_day_summary["deaths"].pop(idx)
-                            
-                            # 如果目标是活人且不是狼人击杀的目标，则视为使用毒药
-                            elif self.app.state.players[vote_target].alive and not poison_used:
-                                # 使用毒药
-                                self.app.state.witch_poison_used[player_id] = True
-                                self.app.log_system(f"女巫 {player_id} 使用了毒药毒死了玩家 {vote_target}")
-                                self.app.summary_text.insert(tk.END, f"女巫 {player_id} 使用了毒药毒死了玩家 {vote_target}！\n", f"p{player_id}")
-                                self.app.summary_text.see(tk.END)
-                                self.app.state.night_votes[player_id] = vote_target
-                                
-                                # 立即标记毒死的玩家
-                                self.app.state.players[vote_target].alive = False
-                                self.app.state.dead_today.append(vote_target)
-                                self.app.state.current_day_summary["deaths"].append((vote_target, "夜晚死亡"))
-                                
-                                # 启用遗言按钮
-                                self.app.lastword_buttons[vote_target].config(state=tk.NORMAL)
-                                
-                                # 检查游戏是否结束
-                                game_over, winner = self.app.state.check_game_over()
-                                if game_over:
-                                    self.app.game_logic_handler.end_game(winner)
                             else:
                                 if vote_target == wolf_target and save_used:
                                     self.app.log_system(f"[警告] 女巫 {player_id} 尝试救活玩家 {vote_target}，但救人药已使用过")
                                 elif not self.app.state.players[vote_target].alive:
                                     self.app.log_system(f"[警告] 女巫 {player_id} 尝试对已死亡的玩家 {vote_target} 使用药水")
-                                elif poison_used:
-                                    self.app.log_system(f"[警告] 女巫 {player_id} 尝试使用毒药，但毒药已使用过")
+                        # 如果目标是活人且不是狼人击杀的目标，则视为使用毒药
+                        elif self.app.state.players[vote_target].alive and not poison_used:
+                            # 使用毒药
+                            self.app.state.witch_poison_used[player_id] = True
+                            self.app.log_system(f"女巫 {player_id} 使用了毒药毒死了玩家 {vote_target}")
+                            self.app.summary_text.insert(tk.END, f"女巫 {player_id} 使用了毒药毒死了玩家 {vote_target}！\n", f"p{player_id}")
+                            self.app.summary_text.see(tk.END)
+                            self.app.state.night_votes[player_id] = vote_target
+
+                            # 立即标记毒死的玩家
+                            self.app.state.players[vote_target].alive = False
+                            self.app.state.dead_today.append(vote_target)
+                            self.app.state.current_day_summary["deaths"].append((vote_target, "夜晚死亡"))
+
+                            # 启用遗言按钮
+                            self.app.lastword_buttons[vote_target].config(state=tk.NORMAL)
+
+                            # 检查游戏是否结束
+                            game_over, winner = self.app.state.check_game_over()
+                            if game_over:
+                                self.app.game_logic_handler.end_game(winner)
+                        elif poison_used:
+                            self.app.log_system(f"[警告] 女巫 {player_id} 尝试使用毒药，但毒药已使用过")
                     else:
                         self.app.log_system(f"[警告] 女巫 {player_id} 选择的目标 {vote_target} 不存在或无效")
-                    
+
                     # 保存女巫的投票记录
                     save_night_vote(player_id, self.app.state.day, text_parsed)
                 else:
@@ -800,13 +799,13 @@ class VoteHandler:
                             except Exception as e:
                                 print(f"[警告] 读取玩家 {p_id} 白天发言失败: {e}")
         return day_speeches
-    
+
     def _read_history_day_speeches(self):
         """读取历史天数的所有白天玩家发言"""
         history_speeches = ""
         record_root = "record"
         current_day = self.app.state.day
-        
+
         # 从第0天到当前天数-1，读取所有历史发言
         for day in range(0, current_day):
             day_folder = os.path.join(record_root, f"第{day}天", "白天玩家发言")
@@ -828,15 +827,15 @@ class VoteHandler:
                                 print(f"[警告] 读取玩家 {p_id} 历史白天发言失败: {e}")
                 if day_speeches:
                     history_speeches += f"**第{day}天白天发言:**\n{day_speeches}\n"
-        
+
         return history_speeches
-    
+
     def _read_history_day_votes(self):
         """读取历史天数的所有白天玩家投票"""
         history_votes = ""
         record_root = "record"
         current_day = self.app.state.day
-        
+
         # 从第0天到当前天数-1，读取所有历史投票
         for day in range(0, current_day):
             day_folder = os.path.join(record_root, f"第{day}天", "白天玩家投票")
@@ -858,15 +857,15 @@ class VoteHandler:
                                 print(f"[警告] 读取玩家 {p_id} 历史白天投票失败: {e}")
                 if day_votes:
                     history_votes += f"**第{day}天白天投票:**\n{day_votes}\n"
-        
+
         return history_votes
-    
+
     def _read_history_night_speeches(self):
         """读取历史天数的狼人夜晚发言（仅适用于狼人玩家）"""
         history_speeches = ""
         record_root = "record"
         current_day = self.app.state.day
-        
+
         # 从第0天到当前天数-1，读取所有历史发言
         for day in range(0, current_day):
             day_folder = os.path.join(record_root, f"第{day}天", "夜晚玩家发言")
@@ -889,15 +888,15 @@ class VoteHandler:
                                     print(f"[警告] 读取玩家 {p_id} 历史夜晚发言失败: {e}")
                 if day_speeches:
                     history_speeches += f"**第{day}天夜晚狼人发言:**\n{day_speeches}\n"
-        
+
         return history_speeches
-    
+
     def _read_history_night_votes(self):
         """读取历史天数的狼人夜晚投票（仅适用于狼人玩家）"""
         history_votes = ""
         record_root = "record"
         current_day = self.app.state.day
-        
+
         # 从第0天到当前天数-1，读取所有历史投票
         for day in range(0, current_day):
             day_folder = os.path.join(record_root, f"第{day}天", "夜晚玩家投票")
@@ -920,7 +919,7 @@ class VoteHandler:
                                     print(f"[警告] 读取玩家 {p_id} 历史夜晚投票失败: {e}")
                 if day_votes:
                     history_votes += f"**第{day}天夜晚投票:**\n{day_votes}\n"
-        
+
         return history_votes
 
     def _read_check_record(self):
@@ -942,7 +941,7 @@ class VoteHandler:
         player_history_votes = ""
         record_root = "record"
         current_day = self.app.state.day
-        
+
         # 从第0天到当前天数-1，读取所有历史投票
         for day in range(0, current_day):
             day_folder = os.path.join(record_root, f"第{day}天", "白天玩家投票")
@@ -956,7 +955,7 @@ class VoteHandler:
                                 player_history_votes += f"**第{day}天白天投票**: {content}\n\n"
                     except Exception as e:
                         self.app.log_system(f"[警告] 读取玩家 {player_id} 第{day}天白天投票失败: {e}")
-        
+
         return player_history_votes
 
     # 新增读取玩家自己所有历史夜晚投票的方法
@@ -965,7 +964,7 @@ class VoteHandler:
         player_history_votes = ""
         record_root = "record"
         current_day = self.app.state.day
-        
+
         # 从第0天到当前天数-1，读取所有历史投票
         for day in range(0, current_day):
             day_folder = os.path.join(record_root, f"第{day}天", "夜晚玩家投票")
@@ -979,7 +978,7 @@ class VoteHandler:
                                 player_history_votes += f"**第{day}天夜晚投票**: {content}\n\n"
                     except Exception as e:
                         self.app.log_system(f"[警告] 读取玩家 {player_id} 第{day}天夜晚投票失败: {e}")
-        
+
         return player_history_votes
 
     def parse_vote_result(self, player_id, vote_text):
@@ -995,7 +994,7 @@ class VoteHandler:
             else:
                 save_daytime_vote(player_id, self.app.state.day, vote_text)
             self.app.state.day_votes[player_id] = vote_target
-            
+
             # 记录玩家的投票历史
             player = self.app.state.players[player_id]
             player.vote_history.append(vote_text)
@@ -1025,7 +1024,7 @@ class VoteHandler:
                             except Exception as e:
                                 self.app.log_system(f"[警告] 读取玩家 {p_id} 警长竞选发言失败: {e}")
         return sheriff_speeches
-        
+
     def _read_player_sheriff_vote(self, player_id):
         """读取特定玩家的警长竞选投票"""
         player_sheriff_vote = ""
