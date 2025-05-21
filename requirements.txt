@@ -1,0 +1,13 @@
+ttkbootstrap==1.10.1
+Pillow==10.1.0
+pygame==2.6.1
+pyttsx3==2.90
+openai>=1.0.0
+python-dotenv==1.0.0
+requests==2.31.0
+google-generativeai>=0.3.0   
+edge-tts>=6.1.7              
+zhipuai>=1.0.7               
+cohere-ai>=4.37              
+anthropic>=0.5.0             
+httpx>=0.24.1               
